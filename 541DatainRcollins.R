@@ -1,9 +1,10 @@
+setwd('C:/Users/CAM/Documents/MSBA/Fall/ST 541/Final Project/Movie_R_Project')
 library(readr)
 library(leaps)
 library("stringr")
 library(dplyr)
 
-USAMOVIES <- read_csv("MSBA/Fall/ST 541/Final Project/Movie_R_Project/USAMOVIES.csv")
+USAMOVIES <- read_csv("./USAMOVIES.csv")
 ratings <- read_csv("IMDb ratings.csv")
 
 names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
@@ -16,14 +17,6 @@ USAMOVIES$worlwide.gross.income <- substr(USAMOVIES$worlwide.gross.income, start
 USAMOVIES$worlwide.gross.income <- as.numeric(USAMOVIES$worlwide.gross.income)
 USAMOVIES$profit <-(USAMOVIES$worlwide.gross.income- USAMOVIES$budget)
 
-
-length(grep("Drama",USAMOVIES$genre))
-length(grep("Comedy",USAMOVIES$genre))
-length(grep("Action",USAMOVIES$genre))
-length(grep("Horror",USAMOVIES$genre))
-length(grep("Romance",USAMOVIES$genre))
-
-
 USAMOVIES["IsItHorror"]<- 0
 USAMOVIES["IsItRomance"] <- 0
 USAMOVIES["IsItAction"] <- 0
@@ -34,33 +27,38 @@ USAMOVIES$IsItRomance[grep("Romance",USAMOVIES$genre)] <- 1
 USAMOVIES$IsItAction[grep("Action",USAMOVIES$genre)] <- 1
 USAMOVIES$IsItComedy[grep("Comedy",USAMOVIES$genre)] <- 1
 USAMOVIES$IsItDrama[grep("Drama",USAMOVIES$genre)] <- 1
+USAMOVIES<-USAMOVIES[!is.na(USAMOVIES$reviews.from.users)&!is.na(USAMOVIES$reviews.from.critics),]
+USAMOVIES <- select(USAMOVIES,-c("metascore"))
+USAMOVIESratings <- merge(USAMOVIES,ratings,by="imdb.title.id")
+attach(USAMOVIESratings)
+detach(USAMOVIESratings)
 
-USAMOVIES1 <- select(USAMOVIES,-c("title","date.published","duration","director","writer",
-                                  "production.company","actors","description","Currency","currency"))
-ratings <- select(ratings,c("imdb.title.id","weighted.average.vote","allgenders.0age.avg.vote",
-                            "allgenders.18age.avg.vote","allgenders.30age.avg.vote","allgenders.45age.avg.vote",
-                            "females.allages.avg.vote","males.allages.avg.vote"))
-USAMOVIES1 <- merge(USAMOVIES,ratings,by="imdb.title.id")
+
 str(USAMOVIES)
 summary(USAMOVIES)
 dim(USAMOVIES)
-#USAMOVIESnew<- na.omit(USAMOVIES, cols = c("reviews.from.users", "reviews.from.critics"))
-dim(USAMOVIESnew)
-attach(USAMOVIES)
-detach(USAMOVIES)
+
+#merge USAMOVIES with ratings
+ratings <- select(ratings,c("imdb.title.id","weighted.average.vote","allgenders.0age.avg.vote",
+                            "allgenders.18age.avg.vote","allgenders.30age.avg.vote","allgenders.45age.avg.vote",
+                            "females.allages.avg.vote","males.allages.avg.vote"))
+
+
+
+
 
 
 
 #What is the best way to predict the profit margin of a movie?--Collins
 # removed na from reviews
 # excluded metascore because of the # of NA
-fullmodel<- lm(profit~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama, data=USAMOVIES)
+fullmodel<- lm(profit~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama, data=USAMOVIESratings)
 summary(fullmodel)
 allinputs<-cbind(year,duration,avg.vote,votes,reviews.from.users,reviews.from.critics,IsItHorror,IsItRomance,IsItAction,IsItComedy,IsItDrama)
 best <- regsubsets(as.matrix(allinputs), profit)
 summary(best)
 
-backAIC <- step(fullmodel,direction="backward", data=USAMOVIES)
+backAIC <- step(fullmodel,direction="backward", data=USAMOVIESratings)
 
 backAIC$coefficients
 backAICmodel<-lm(profit ~ year + duration + votes + reviews.from.users + reviews.from.critics + 
@@ -70,7 +68,7 @@ summary(backAICmodel)
 #R^2= 0.4579
 
 n <- length(fullmodel$residuals)
-backBIC <- step(fullmodel,direction="backward", data=USAMOVIES, k=log(n))
+backBIC <- step(fullmodel,direction="backward", data=USAMOVIESratings, k=log(n))
 backBIC$coefficients
 backBICmodel<-lm(profit ~ votes + reviews.from.users + reviews.from.critics + 
                    IsItHorror + IsItDrama)
@@ -78,13 +76,13 @@ backBICmodel<-lm(profit ~ votes + reviews.from.users + reviews.from.critics +
 summary(backBICmodel)
 #R^2= 0.4568 
 
-intercept <- lm(profit~1,data=USAMOVIES)
+intercept <- lm(profit~1,data=USAMOVIESratings)
 forwardBIC <- step(intercept,scope=list(lower=~1,upper=~year+duration+avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama),direction="forward", data=USAMOVIES,k=log(n))
 forwardBICmodel<-lm()
 summary(forwardBICmodel)
 forwardBIC$coefficients
 
-intercept <- lm(profit~1,data=USAMOVIES)
+intercept <- lm(profit~1,data=USAMOVIESratings)
 forwardAIC <- step(intercept,scope=list(lower=~1,upper=~year+duration+avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama),direction="forward", data=USAMOVIES)
 forwardAICmodel<-lm()
 summary(forwardAICmodel)
