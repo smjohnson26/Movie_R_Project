@@ -1,10 +1,12 @@
 library(readr)
 library(leaps)
 library("stringr")
+library(dplyr)
 
 USAMOVIES <- read_csv("MSBA/Fall/ST 541/Final Project/Movie_R_Project/USAMOVIES.csv")
+ratings <- read_csv("IMDb ratings.csv")
 
-
+names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
 names(USAMOVIES)<-str_replace_all(names(USAMOVIES), c("_" = "." , "," = "" ))
 USAMOVIES$budget <- substr(USAMOVIES$budget, start = 2, stop = 15)
 USAMOVIES$budget <- as.numeric(USAMOVIES$budget)
@@ -32,18 +34,26 @@ USAMOVIES$IsItRomance[grep("Romance",USAMOVIES$genre)] <- 1
 USAMOVIES$IsItAction[grep("Action",USAMOVIES$genre)] <- 1
 USAMOVIES$IsItComedy[grep("Comedy",USAMOVIES$genre)] <- 1
 USAMOVIES$IsItDrama[grep("Drama",USAMOVIES$genre)] <- 1
+
+USAMOVIES1 <- select(USAMOVIES,-c("title","date.published","duration","director","writer",
+                                  "production.company","actors","description","Currency","currency"))
+ratings <- select(ratings,c("imdb.title.id","weighted.average.vote","allgenders.0age.avg.vote",
+                            "allgenders.18age.avg.vote","allgenders.30age.avg.vote","allgenders.45age.avg.vote",
+                            "females.allages.avg.vote","males.allages.avg.vote"))
+USAMOVIES1 <- merge(USAMOVIES,ratings,by="imdb.title.id")
 str(USAMOVIES)
 summary(USAMOVIES)
-
-
+dim(USAMOVIES)
+#USAMOVIESnew<- na.omit(USAMOVIES, cols = c("reviews.from.users", "reviews.from.critics"))
+dim(USAMOVIESnew)
 attach(USAMOVIES)
 detach(USAMOVIES)
 
 
 
 #What is the best way to predict the profit margin of a movie?--Collins
-#fill metascore with 0? just not include it. removed for now.
-#input genre and gender later after steven pushed
+# removed na from reviews
+# excluded metascore because of the # of NA
 fullmodel<- lm(profit~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama, data=USAMOVIES)
 summary(fullmodel)
 allinputs<-cbind(year,duration,avg.vote,votes,reviews.from.users,reviews.from.critics,IsItHorror,IsItRomance,IsItAction,IsItComedy,IsItDrama)
