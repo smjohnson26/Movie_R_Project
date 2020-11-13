@@ -16,17 +16,18 @@ library(readr)
 library("stringr")
 library(dplyr)
 USAMOVIES <- read.csv("C:/Users/balli/Documents/Movie_R_Project/USAMOVIES.csv")
+
 ratings <- read.csv("C:/Users/balli/Documents/Movie_R_Project/IMDb ratings.csv")
-names(USAMOVIES)<-str_replace_all(names(USAMOVIES), c("_" = "." , "," = "" ))
 names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
+names(USAMOVIES)<-str_replace_all(names(USAMOVIES), c("_" = "." , "," = "" ))
 USAMOVIES$budget <- substr(USAMOVIES$budget, start = 2, stop = 15)
 USAMOVIES$budget <- as.numeric(USAMOVIES$budget)
 USAMOVIES$usa.gross.income <- substr(USAMOVIES$usa.gross.income, start = 2, stop = 15)
 USAMOVIES$usa.gross.income <- as.numeric(USAMOVIES$usa.gross.income)
 USAMOVIES$worlwide.gross.income <- substr(USAMOVIES$worlwide.gross.income, start = 2, stop = 15)
 USAMOVIES$worlwide.gross.income <- as.numeric(USAMOVIES$worlwide.gross.income)
-
 USAMOVIES$profit <-(USAMOVIES$worlwide.gross.income- USAMOVIES$budget)
+
 
 USAMOVIES1 <- select(USAMOVIES,-c("title","date.published","duration","director","writer",
 "production.company","actors","description","Currency","currency","reviews.from.users",
@@ -49,6 +50,6 @@ USAMOVIES1$IsItAction[grep("Action",USAMOVIES1$genre)] <- 1
 USAMOVIES1$IsItComedy[grep("Comedy",USAMOVIES1$genre)] <- 1
 USAMOVIES1$IsItDrama[grep("Drama",USAMOVIES1$genre)] <- 1
 
-
+summary(USAMOVIES)
 
 
