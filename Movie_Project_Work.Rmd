@@ -27,7 +27,9 @@ USAMOVIES$usa.gross.income <- as.numeric(USAMOVIES$usa.gross.income)
 USAMOVIES$worlwide.gross.income <- substr(USAMOVIES$worlwide.gross.income, start = 2, stop = 15)
 USAMOVIES$worlwide.gross.income <- as.numeric(USAMOVIES$worlwide.gross.income)
 USAMOVIES$profit <-(USAMOVIES$worlwide.gross.income- USAMOVIES$budget)
-
+USAMOVIES<-USAMOVIES[!is.na(USAMOVIES$reviews.from.users)&!is.na(USAMOVIES$reviews.from.critics),]
+USAMOVIES <- select(USAMOVIES,-c("metascore"))
+USAMOVIES1 <- USAMOVIES
 
 USAMOVIES1 <- select(USAMOVIES,-c("title","date.published","duration","director","writer",
 "production.company","actors","description","Currency","currency","reviews.from.users",
