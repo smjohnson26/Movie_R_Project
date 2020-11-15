@@ -15,25 +15,20 @@ How are ratings affected by movie genre, movie duration, gender, or age group?
 library(readr)
 library("stringr")
 library(dplyr)
-USAMOVIES <- read.csv("C:/Users/balli/Documents/Movie_R_Project/USAMOVIES.csv")
-
+library(ggplot2)
+USAMOVIES <- read.csv("C:/Users/balli/Documents/Movie_R_Project/USAMOVIES_INFL.csv")
+summary(USAMOVIES)
 ratings <- read.csv("C:/Users/balli/Documents/Movie_R_Project/IMDb ratings.csv")
 names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
 names(USAMOVIES)<-str_replace_all(names(USAMOVIES), c("_" = "." , "," = "" ))
-USAMOVIES$budget <- substr(USAMOVIES$budget, start = 2, stop = 15)
-USAMOVIES$budget <- as.numeric(USAMOVIES$budget)
-USAMOVIES$usa.gross.income <- substr(USAMOVIES$usa.gross.income, start = 2, stop = 15)
-USAMOVIES$usa.gross.income <- as.numeric(USAMOVIES$usa.gross.income)
-USAMOVIES$worlwide.gross.income <- substr(USAMOVIES$worlwide.gross.income, start = 2, stop = 15)
-USAMOVIES$worlwide.gross.income <- as.numeric(USAMOVIES$worlwide.gross.income)
-USAMOVIES$profit <-(USAMOVIES$worlwide.gross.income- USAMOVIES$budget)
+USAMOVIES$profit <-(USAMOVIES$worldwide.gross.infl- USAMOVIES$budget.infl)
 USAMOVIES<-USAMOVIES[!is.na(USAMOVIES$reviews.from.users)&!is.na(USAMOVIES$reviews.from.critics),]
 USAMOVIES <- select(USAMOVIES,-c("metascore"))
 USAMOVIES1 <- USAMOVIES
 
-USAMOVIES1 <- select(USAMOVIES,-c("title","date.published","duration","director","writer",
-"production.company","actors","description","Currency","currency","reviews.from.users",
-"reviews.from.critics","votes"))
+USAMOVIES1 <- select(USAMOVIES,-c("title","date.published","director","writer",
+"production.company","actors","description","Currency","reviews.from.users",
+"reviews.from.critics","votes","usa.gross.income","worlwide.gross.income"))
 ratings <- select(ratings,c("imdb.title.id","weighted.average.vote","allgenders.0age.avg.vote",
 "allgenders.18age.avg.vote","allgenders.30age.avg.vote","allgenders.45age.avg.vote",
 "females.allages.avg.vote","males.allages.avg.vote"))
@@ -52,6 +47,127 @@ USAMOVIES1$IsItAction[grep("Action",USAMOVIES1$genre)] <- 1
 USAMOVIES1$IsItComedy[grep("Comedy",USAMOVIES1$genre)] <- 1
 USAMOVIES1$IsItDrama[grep("Drama",USAMOVIES1$genre)] <- 1
 
-summary(USAMOVIES)
+## Are ratings affected by genre?
+attach(USAMOVIES1)
+lm_all <- lm(avg.vote ~ IsItHorror + IsItRomance + IsItAction + IsItComedy + IsItDrama)
+summary(lm_all)
+
+        
+Horror <- subset(USAMOVIES1, IsItHorror == 1, select = c(avg.vote))
+NoHorror <- subset(USAMOVIES1, IsItHorror == 0, select = c(avg.vote))
+## Horror Plots
+p <- ggplot(Horror, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1)
+p <- ggplot(NoHorror, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1)
+
+## Romance Plots 
+Romance <- subset(USAMOVIES1, IsItRomance == 1, select = c(avg.vote))
+NoRomance <- subset(USAMOVIES1, IsItRomance == 0, select = c(avg.vote))
+
+p <- ggplot(Romance, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) 
+            
+p <- ggplot(NoRomance, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1)
+## Action Plots
+Action <- subset(USAMOVIES1, IsItAction == 1, select = c(avg.vote))
+NoAction <- subset(USAMOVIES1, IsItAction == 0, select = c(avg.vote))
+
+p <- ggplot(Action, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) 
+            
+p <- ggplot(NoAction, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1)
+            
+## Comedy Plot
+Comedy <- subset(USAMOVIES1, IsItComedy == 1, select = c(avg.vote))
+NoComedy <- subset(USAMOVIES1, IsItComedy == 0, select = c(avg.vote))
+
+p <- ggplot(Comedy, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) 
+            
+p <- ggplot(NoComedy, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1)
+            
+## Drama Plot
+Drama <- subset(USAMOVIES1, IsItDrama == 1, select = c(avg.vote))
+NoDrama <- subset(USAMOVIES1, IsItDrama == 0, select = c(avg.vote))
+
+p <- ggplot(Drama, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) 
+            
+p <- ggplot(NoDrama, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1)
+            
+            
+## How are Ratings Affected by Gender?
+female_lm <- lm(avg.vote ~ females.allages.avg.vote)
+summary(female_lm)
+ggplot(USAMOVIES1, aes(x=females.allages.avg.vote,y=avg.vote)) + 
+geom_point(shape = 1) + geom_smooth(method = "lm", color = "red")
+
+male_lm <- lm(avg.vote ~ males.allages.avg.vote)
+summary(male_lm)
+ggplot(USAMOVIES1, aes(x=males.allages.avg.vote,y=avg.vote)) + 
+geom_point(shape = 1) + geom_smooth(method = "lm", color = "red")
+
+
+hgf <- hist(females.allages.avg.vote,plot = FALSE)
+hgm <- hist(males.allages.avg.vote,plot = FALSE)
+
+plot(hgf,col = rgb(1,0,0,.2))
+plot(hgm,col = rgb(0,0,1,.2), add=TRUE)
+
+## Do Females Actually Like Romantic Movies More than Males?
+Romance1 <- subset(USAMOVIES1, IsItRomance == 1, select = c(avg.vote,males.allages.avg.vote,females.allages.avg.vote))
+boxplot(Romance1$females.allages.avg.vote,Romance1$males.allages.avg.vote,
+names = c("Female","Male"),
+col = c("pink","blue"))
+
+## Do Males Actually Like Action Movies More than Females?
+Action1 <- subset(USAMOVIES1, IsItAction == 1, select = c(avg.vote,males.allages.avg.vote,females.allages.avg.vote))
+
+boxplot(Action1$females.allages.avg.vote,Action1$males.allages.avg.vote,
+names = c("Female","Male"),
+col = c("pink","blue"))
+
+## How Does Movie Duration Affect a Movie's Success?
+duration_lm <- lm(avg.vote~ duration)
+summary(duration_lm)
+plot(duration,avg.vote)
+abline(duration_lm, col = 'red')
+
+
 
 
