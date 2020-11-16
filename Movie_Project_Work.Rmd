@@ -16,6 +16,7 @@ library(readr)
 library("stringr")
 library(dplyr)
 library(ggplot2)
+library(car)
 USAMOVIES <- read.csv("C:/Users/balli/Documents/Movie_R_Project/USAMOVIES_INFL.csv")
 summary(USAMOVIES)
 ratings <- read.csv("C:/Users/balli/Documents/Movie_R_Project/IMDb ratings.csv")
@@ -132,16 +133,7 @@ p <- ggplot(NoDrama, aes(x=avg.vote)) +
             
             
 ## How are Ratings Affected by Gender?
-female_lm <- lm(avg.vote ~ females.allages.avg.vote)
-summary(female_lm)
-ggplot(USAMOVIES1, aes(x=females.allages.avg.vote,y=avg.vote)) + 
-geom_point(shape = 1) + geom_smooth(method = "lm", color = "red")
-
-male_lm <- lm(avg.vote ~ males.allages.avg.vote)
-summary(male_lm)
-ggplot(USAMOVIES1, aes(x=males.allages.avg.vote,y=avg.vote)) + 
-geom_point(shape = 1) + geom_smooth(method = "lm", color = "red")
-
+t.test(females.allages.avg.vote,males.allages.avg.vote)
 
 hgf <- hist(females.allages.avg.vote,plot = FALSE)
 hgm <- hist(males.allages.avg.vote,plot = FALSE)
@@ -151,13 +143,14 @@ plot(hgm,col = rgb(0,0,1,.2), add=TRUE)
 
 ## Do Females Actually Like Romantic Movies More than Males?
 Romance1 <- subset(USAMOVIES1, IsItRomance == 1, select = c(avg.vote,males.allages.avg.vote,females.allages.avg.vote))
+t.test(Romance1$females.allages.avg.vote,Romance1$males.allages.avg.vote)
 boxplot(Romance1$females.allages.avg.vote,Romance1$males.allages.avg.vote,
 names = c("Female","Male"),
 col = c("pink","blue"))
 
 ## Do Males Actually Like Action Movies More than Females?
 Action1 <- subset(USAMOVIES1, IsItAction == 1, select = c(avg.vote,males.allages.avg.vote,females.allages.avg.vote))
-
+t.test(Action1$females.allages.avg.vote,Action1$males.allages.avg.vote)
 boxplot(Action1$females.allages.avg.vote,Action1$males.allages.avg.vote,
 names = c("Female","Male"),
 col = c("pink","blue"))
@@ -168,6 +161,19 @@ summary(duration_lm)
 plot(duration,avg.vote)
 abline(duration_lm, col = 'red')
 
+res_std <- rstandard(duration_lm)
+USAMOVIES1$res_std = res_std
+USAMOVIES2 <- USAMOVIES1[USAMOVIES1$res_std <= 2,]
+USAMOVIES3 <- USAMOVIES2[USAMOVIES1$res_std >= -2,]
+duration_lm2 <- lm(USAMOVIES3$avg.vote~ USAMOVIES3$duration)
+summary(duration_lm2)
+plot(USAMOVIES3$duration,USAMOVIES3$avg.vote)
+abline(duration_lm2, col= 'red')
 
+## How Does Age Group Affect Ratings? Maybe Dump?
 
+age_group <- lm(avg.vote~ allgenders.0age.avg.vote+ allgenders.18age.avg.vote +
+allgenders.30age.avg.vote + allgenders.45age.avg.vote)
+summary(age_group)
+anova(age_group)
 
