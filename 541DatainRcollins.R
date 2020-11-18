@@ -3,6 +3,8 @@ library(readr)
 library(leaps)
 library("stringr")
 library(dplyr)
+library(ggplot2)
+library(car)
 
 
 
@@ -78,6 +80,20 @@ hist(profit.infl, main = "Distribution of Profit",
 hist(avg.vote, main = "Distribution of Average Vote", xlab = "Average Vote", xlim = c(0,10), breaks = c(0,1,2,3,4,5,6,7,8,9,10), las= 1)
 summary(USAMOVIES)
 dim(USAMOVIES)
+
+ggplot(USAMOVIESratings, aes(x=budget.infl)) + 
+  geom_histogram(aes(y=..density..), colour="black", fill="white")+
+  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5)+scale_y_continuous(label = scales::comma))
+  p+ geom_vline(aes(xintercept=mean(budget.infl)),
+              color="blue", linetype="dashed", size=1) + ggtitle("Spread of Movie Budget")
+  
+  
+ggplot(USAMOVIESratings, aes(x=profit.infl)) + 
+    geom_histogram(aes(y=..density..), colour="black", fill="white")+
+    geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5)+scale_y_continuous(label = scales::comma))
+    p+ geom_vline(aes(xintercept=mean(profit.infl)),
+                color="blue", linetype="dashed", size=1) + ggtitle("Spread of Movie Profit")
+
 
 
 
