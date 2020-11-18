@@ -61,12 +61,12 @@ p <- ggplot(Horror, aes(x=avg.vote)) +
  geom_histogram(aes(y=..density..), colour="black", fill="white")+
  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
  p+ geom_vline(aes(xintercept=mean(avg.vote)),
-            color="blue", linetype="dashed", size=1)
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Horror Movie Ratings")
 p <- ggplot(NoHorror, aes(x=avg.vote)) + 
  geom_histogram(aes(y=..density..), colour="black", fill="white")+
  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
  p+ geom_vline(aes(xintercept=mean(avg.vote)),
-            color="blue", linetype="dashed", size=1)
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Non-Horror Movie Ratings")
 
 ## Romance Plots 
 Romance <- subset(USAMOVIES1, IsItRomance == 1, select = c(avg.vote))
@@ -76,13 +76,13 @@ p <- ggplot(Romance, aes(x=avg.vote)) +
  geom_histogram(aes(y=..density..), colour="black", fill="white")+
  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
  p+ geom_vline(aes(xintercept=mean(avg.vote)),
-            color="blue", linetype="dashed", size=1) 
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Romance Movie Ratings")
             
 p <- ggplot(NoRomance, aes(x=avg.vote)) + 
  geom_histogram(aes(y=..density..), colour="black", fill="white")+
  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
  p+ geom_vline(aes(xintercept=mean(avg.vote)),
-            color="blue", linetype="dashed", size=1)
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Non-Romance Movie Ratings")
 ## Action Plots
 Action <- subset(USAMOVIES1, IsItAction == 1, select = c(avg.vote))
 NoAction <- subset(USAMOVIES1, IsItAction == 0, select = c(avg.vote))
@@ -91,13 +91,13 @@ p <- ggplot(Action, aes(x=avg.vote)) +
  geom_histogram(aes(y=..density..), colour="black", fill="white")+
  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
  p+ geom_vline(aes(xintercept=mean(avg.vote)),
-            color="blue", linetype="dashed", size=1) 
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Action Movie Ratings")
             
 p <- ggplot(NoAction, aes(x=avg.vote)) + 
  geom_histogram(aes(y=..density..), colour="black", fill="white")+
  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
  p+ geom_vline(aes(xintercept=mean(avg.vote)),
-            color="blue", linetype="dashed", size=1)
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Non-Action Movie Ratings")
             
 ## Comedy Plot
 Comedy <- subset(USAMOVIES1, IsItComedy == 1, select = c(avg.vote))
@@ -107,13 +107,13 @@ p <- ggplot(Comedy, aes(x=avg.vote)) +
  geom_histogram(aes(y=..density..), colour="black", fill="white")+
  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
  p+ geom_vline(aes(xintercept=mean(avg.vote)),
-            color="blue", linetype="dashed", size=1) 
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Comedy Movie Ratings")
             
 p <- ggplot(NoComedy, aes(x=avg.vote)) + 
  geom_histogram(aes(y=..density..), colour="black", fill="white")+
  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
  p+ geom_vline(aes(xintercept=mean(avg.vote)),
-            color="blue", linetype="dashed", size=1)
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Non-Comedy Movie Ratings")
             
 ## Drama Plot
 Drama <- subset(USAMOVIES1, IsItDrama == 1, select = c(avg.vote))
@@ -123,13 +123,13 @@ p <- ggplot(Drama, aes(x=avg.vote)) +
  geom_histogram(aes(y=..density..), colour="black", fill="white")+
  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
  p+ geom_vline(aes(xintercept=mean(avg.vote)),
-            color="blue", linetype="dashed", size=1) 
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Drama Movie Ratings")
             
 p <- ggplot(NoDrama, aes(x=avg.vote)) + 
  geom_histogram(aes(y=..density..), colour="black", fill="white")+
  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
  p+ geom_vline(aes(xintercept=mean(avg.vote)),
-            color="blue", linetype="dashed", size=1)
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Non-Drama Movie Ratings")
             
             
 ## How are Ratings Affected by Gender?
@@ -138,7 +138,7 @@ t.test(females.allages.avg.vote,males.allages.avg.vote)
 hgf <- hist(females.allages.avg.vote,plot = FALSE)
 hgm <- hist(males.allages.avg.vote,plot = FALSE)
 
-plot(hgf,col = rgb(1,0,0,.2))
+plot(hgf,col = rgb(1,0,0,.2), main = "Spread of Female and Male Vote")
 plot(hgm,col = rgb(0,0,1,.2), add=TRUE)
 
 ## Do Females Actually Like Romantic Movies More than Males?
@@ -170,10 +170,5 @@ summary(duration_lm2)
 plot(USAMOVIES3$duration,USAMOVIES3$avg.vote)
 abline(duration_lm2, col= 'red')
 
-## How Does Age Group Affect Ratings? Maybe Dump?
 
-age_group <- lm(avg.vote~ allgenders.0age.avg.vote+ allgenders.18age.avg.vote +
-allgenders.30age.avg.vote + allgenders.45age.avg.vote)
-summary(age_group)
-anova(age_group)
 
