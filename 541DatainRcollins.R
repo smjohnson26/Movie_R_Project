@@ -6,6 +6,7 @@ library(dplyr)
 library(ggplot2)
 library(ggplot)
 library(car)
+library(moments)
 
 
 
@@ -54,91 +55,65 @@ USAMOVIESratings <- merge(USAMOVIES,ratings,by="imdb.title.id")
 
 attach(USAMOVIESratings)
 detach(USAMOVIESratings)
-# Data Visualizations
 
-
-colnames(USAMOVIESratings)
-str(USAMOVIESratings)
-g.
-summary(USAMOVIESratings[, c("year", "duration", "production.company","budget.infl","worldwide.gross.infl","usa.gross.infl","profit.infl",            
-                            "weighted.average.vote","males.allages.avg.vote","females.allages.avg.vote")])
-
-table(IsItHorror)
-table(IsItRomance)
-table(IsItAction)
-table(IsItComedy)
-table(IsItDrama)
-
-par(mfrow = c(1, 1))
-hist(budget.infl, main = "Distribution of Budget", xlab = "budget", las= 1, xaxt="n")
-#boxplot(budget.infl, data = USAMOVIESratings, main = "Box Plot of Budget", yaxt="n")
-#axis(2, at=axTicks(2), labels=sprintf("$%s", axTicks(2)), las = 1)
-axis(side = 1, at = seq(1000,400000000,100000), labels = seq(1000,400000000,100000))
-# scale_y_continuous(label = scales::comma))
-hist(profit.infl, main = "Distribution of Profit",
-     xlab = "profit", las= 1)
-     #xlim = c(-174531755,7462749659)), breaks=c(-20000000, -10000000, 0, 100000000, 200000000, 300000000, 400000000, 500000000)
-hist(avg.vote, main = "Distribution of Average Vote", xlab = "Average Vote", xlim = c(0,10), breaks = c(0,1,2,3,4,5,6,7,8,9,10), las= 1)
-summary(USAMOVIES)
-dim(USAMOVIES)
-
-ggplot( data= USAMOVIESratings, aes(budget.infl))+ geom_histogram(col='blue', alpha=.2)+ labs(title="Spread of Movie Budget", x="Budget", y="Frequency")
-  #xlim(c(--111000000,256000000))
-
-
-qplot(budget.infl, geom="histogram",main = "Histogram for Movie Budget", xlab="Budget", alpha = I(.2))
-
-p<-ggplot(USAMOVIESratings, aes(x=budget.infl)) + 
+year21<-subset(USAMOVIESratings, year>=2000)
+posprof<- subset(year21, profit.infl>0)
+negprofit<- subset(year21, profit.infl<=0)
+detach(year)
+attach(posprof)
+detach(posprof)
+attach(negprofit)
+detach(negprofit)
+p<-ggplot(negprofit, aes(x=logprofit)) + 
   geom_histogram(aes(y=..density..), colour="black", fill="white")+
   geom_density(alpha=.2, fill="#FF6666") + 
   scale_x_continuous(breaks=seq(0, 10, 0.5)+scale_y_continuous(label = scales::comma))
-  p+ geom_vline(aes(xintercept=mean(budget.infl)),
+p+ geom_vline(aes(xintercept=mean(logprofit)),
               color="blue", linetype="dashed", size=1) + ggtitle("Spread of Movie Budget")
-  
-  
-ggplot(USAMOVIESratings, aes(x=profit.infl)) + 
-    geom_histogram(colour="black", fill="white")+
-    #geom_density(alpha=.2, fill="#FF6666") +
-  scale_x_continuous(breaks=seq(0, 10, 0.5))
-    p+ geom_vline(aes(xintercept=mean(profit.infl)),
-                color="blue", linetype="dashed", size=1) + ggtitle("Spread of Movie Profit")+ xlab("Budget")
-    #+ylab("Frequency")
-    #+scale_y_continuous(label = scales::comma)
-
-
-
-
-
+hist(trans)
 
 
 #What is the best way to predict the profit margin of a movie?--Collins
 
 minprof<- abs(min(profit.infl))
 normprofit <-profit.infl+minprof+1
+sqrt<- sqrt(normprofit)
+trans<-1/((minprof+1)-profit.infl)
+skewness(trans, na.rm = TRUE)
 logprofit<- log(normprofit)
+logprofit<- log(profit.infl)
 
-fullmodprofitinfl<- lm(logprofit~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=USAMOVIESratings)
+library(MASS)
+par(mfrow=c(1,2))
+boxcox(profit.infl)
+boxcox(m1,lambda=seq(0.325,0.34,length=20))
+
+fullmodprofitinfl<- lm(logprofit~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=negprofit)
 summary(fullmodprofitinfl)
 
 #####get to work
-allinputs<-cbind(year,duration,avg.vote,votes,reviews.from.users,reviews.from.critics,IsItHorror,IsItRomance,IsItAction,IsItComedy,IsItDrama,weighted.average.vote,mean.vote,median.vote,males.allages.avg.vote,males.allages.votes,females.allages.avg.vote,females.allages.votes,top1000.voters.rating,top1000.voters.votes,us.voters.rating,us.voters.votes,non.us.voters.rating,non.us.voters.votes, data=USAMOVIESratings)
-best <- regsubsets(as.matrix(allinputs), profit)
+allinputs<-cbind(year,duration,avg.vote,votes,reviews.from.users,reviews.from.critics,IsItHorror,IsItRomance,IsItAction,IsItComedy,IsItDrama,weighted.average.vote,mean.vote,median.vote,males.allages.avg.vote,males.allages.votes,females.allages.avg.vote,females.allages.votes,top1000.voters.rating,top1000.voters.votes,us.voters.rating,us.voters.votes,non.us.voters.rating,non.us.voters.votes, data=posprof)
+best <- regsubsets(as.matrix(allinputs), logprofit)
 summary(best)
 
 
 ###BACK AIC
   
   ##inflation
-  backAICinfl <- step(fullmodprofitinfl,direction="backward", data=USAMOVIESratings)
+  backAICinfl <- step(fullmodprofitinfl,direction="backward", data=posprof)
   backAICinfl$coefficients
   backAICmodelinfllog<-lm(logprofit ~ votes + reviews.from.users + reviews.from.critics + 
     IsItHorror + IsItDrama + mean.vote + males.allages.avg.vote + 
     males.allages.votes + females.allages.avg.vote + females.allages.votes + 
     top1000.voters.rating + top1000.voters.votes + non.us.voters.rating, data=USAMOVIESratings)
   summary(backAICmodelinfllog)
+
   #AIC= -9701.66
   #R^2= 0.406  
   
+  trial<-lm(logprofit ~ duration + reviews.from.critics + IsItAction + top1000.voters.votes + 
+              us.voters.rating + non.us.voters.votes, data=negprofit)
+  summary(trial)
 
 
 
@@ -185,7 +160,7 @@ summary(best)
   
 ###STEP
   #AIC
-  StepAIC <- step(fullmodprofitinfl,direction="both", data=USAMOVIESratings)
+  StepAIC <- step(fullmodprofitinfl,direction="both", data=negprofit)
   StepAICmodelinfl<-lm(logprofit ~ votes + reviews.from.users + reviews.from.critics + 
                          IsItHorror + IsItDrama + mean.vote + males.allages.avg.vote + 
                          males.allages.votes + females.allages.avg.vote + females.allages.votes + 
@@ -195,7 +170,7 @@ summary(best)
     #R^2= 0.406 
   
   #BIC
-  StepBIC <- step(fullmodprofitinfl,direction="both", data=USAMOVIESratings, k=log(ninfl))
+  StepBIC <- step(fullmodprofitinfl,direction="both", data=posprof, k=log(ninfl))
   StepBICmodelinfl<-lm(logprofit ~ votes + reviews.from.critics + IsItHorror + IsItDrama + 
                          mean.vote + males.allages.votes + females.allages.avg.vote + 
                          females.allages.votes + top1000.voters.votes + non.us.voters.rating,data=USAMOVIESratings)
