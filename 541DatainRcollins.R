@@ -4,6 +4,7 @@ library(leaps)
 library("stringr")
 library(dplyr)
 library(ggplot2)
+library(ggplot)
 library(car)
 
 
@@ -81,18 +82,28 @@ hist(avg.vote, main = "Distribution of Average Vote", xlab = "Average Vote", xli
 summary(USAMOVIES)
 dim(USAMOVIES)
 
-ggplot(USAMOVIESratings, aes(x=budget.infl)) + 
+ggplot( data= USAMOVIESratings, aes(budget.infl))+ geom_histogram(col='blue', alpha=.2)+ labs(title="Spread of Movie Budget", x="Budget", y="Frequency")
+  #xlim(c(--111000000,256000000))
+
+
+qplot(budget.infl, geom="histogram",main = "Histogram for Movie Budget", xlab="Budget", alpha = I(.2))
+
+p<-ggplot(USAMOVIESratings, aes(x=budget.infl)) + 
   geom_histogram(aes(y=..density..), colour="black", fill="white")+
-  geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5)+scale_y_continuous(label = scales::comma))
+  geom_density(alpha=.2, fill="#FF6666") + 
+  scale_x_continuous(breaks=seq(0, 10, 0.5)+scale_y_continuous(label = scales::comma))
   p+ geom_vline(aes(xintercept=mean(budget.infl)),
               color="blue", linetype="dashed", size=1) + ggtitle("Spread of Movie Budget")
   
   
 ggplot(USAMOVIESratings, aes(x=profit.infl)) + 
-    geom_histogram(aes(y=..density..), colour="black", fill="white")+
-    geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5)+scale_y_continuous(label = scales::comma))
+    geom_histogram(colour="black", fill="white")+
+    #geom_density(alpha=.2, fill="#FF6666") +
+  scale_x_continuous(breaks=seq(0, 10, 0.5))
     p+ geom_vline(aes(xintercept=mean(profit.infl)),
-                color="blue", linetype="dashed", size=1) + ggtitle("Spread of Movie Profit")
+                color="blue", linetype="dashed", size=1) + ggtitle("Spread of Movie Profit")+ xlab("Budget")
+    #+ylab("Frequency")
+    #+scale_y_continuous(label = scales::comma)
 
 
 
@@ -101,7 +112,12 @@ ggplot(USAMOVIESratings, aes(x=profit.infl)) +
 
 
 #What is the best way to predict the profit margin of a movie?--Collins
-fullmodprofitinfl<- lm(profit.infl~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=USAMOVIESratings)
+
+minprof<- abs(min(profit.infl))
+normprofit <-profit.infl+minprof+1
+logprofit<- log(normprofit)
+
+fullmodprofitinfl<- lm(logprofit~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=USAMOVIESratings)
 summary(fullmodprofitinfl)
 
 #####get to work
@@ -115,15 +131,14 @@ summary(best)
   ##inflation
   backAICinfl <- step(fullmodprofitinfl,direction="backward", data=USAMOVIESratings)
   backAICinfl$coefficients
-  backAICmodelinfl<- lm(profit.infl ~ year + duration + avg.vote + votes + reviews.from.users + 
-   reviews.from.critics + IsItHorror + IsItAction + IsItComedy + 
-    IsItDrama + mean.vote + males.allages.votes + females.allages.avg.vote + 
-    females.allages.votes + top1000.voters.rating + top1000.voters.votes + 
-    us.voters.rating + us.voters.votes + non.us.voters.rating, data=USAMOVIESratings)
-  summary(backAICmodelinfl)
-  #AIC= 210847.5
-  #R^2= 0.3937 
-
+  backAICmodelinfllog<-lm(logprofit ~ votes + reviews.from.users + reviews.from.critics + 
+    IsItHorror + IsItDrama + mean.vote + males.allages.avg.vote + 
+    males.allages.votes + females.allages.avg.vote + females.allages.votes + 
+    top1000.voters.rating + top1000.voters.votes + non.us.voters.rating, data=USAMOVIESratings)
+  summary(backAICmodelinfllog)
+  #AIC= -9701.66
+  #R^2= 0.406  
+  
 
 
 
@@ -132,6 +147,89 @@ summary(best)
   ##inflation
   backBICinfl <- step(fullmodprofitinfl,direction="backward", data=USAMOVIESratings, k=log(ninfl))
   backBICinfl$coefficients
+  backBICmodelinfllog<-lm(logprofit ~ votes + reviews.from.critics + IsItHorror + IsItDrama + 
+                         mean.vote + males.allages.votes + females.allages.avg.vote + 
+                         females.allages.votes + top1000.voters.votes + non.us.voters.rating, data=USAMOVIESratings)
+  summary(backBICmodelinfllog)
+  #BIC= -9619.72
+  #R^2=  0.4047 
+
+  
+###FORWARD AIC 
+  interceptinfl <- lm(logprofit~1,data=USAMOVIESratings)
+  
+  forwardAICinfl <- step(interceptinfl,scope=list(lower=~1,upper=~year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes),direction="forward", data=USAMOVIESratings)
+  forwardAICinfl$coefficients
+  forwardAICmodelinfl<-lm(logprofit ~ top1000.voters.votes + females.allages.votes + IsItDrama + 
+                            reviews.from.users + non.us.voters.votes + votes + males.allages.votes + 
+                            IsItHorror + reviews.from.critics + non.us.voters.rating + 
+                            females.allages.avg.vote + mean.vote + top1000.voters.rating + 
+                            males.allages.avg.vote,data=USAMOVIESratings)
+  summary(forwardAICmodelinfl)
+  
+  #AIC= -9699.8
+  #R^2=0.4059
+  
+  
+###FORWARD BIC 
+
+  forwardBICinfl <- step(interceptinfl,scope=list(lower=~1,upper=~year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes),direction="forward", data=USAMOVIESratings,k=log(ninfl))
+  forwardBICinfl$coefficients
+  forwardBICmodelinfllog<-lm(logprofit ~ top1000.voters.votes + females.allages.votes + IsItDrama + 
+                            reviews.from.users + non.us.voters.votes + votes + males.allages.votes + 
+                            IsItHorror + reviews.from.critics,data=USAMOVIESratings)
+  summary(forwardBICmodelinfllog)
+  
+  #BIC= -9531.61
+  #R^2= 0.3943 
+  
+###STEP
+  #AIC
+  StepAIC <- step(fullmodprofitinfl,direction="both", data=USAMOVIESratings)
+  StepAICmodelinfl<-lm(logprofit ~ votes + reviews.from.users + reviews.from.critics + 
+                         IsItHorror + IsItDrama + mean.vote + males.allages.avg.vote + 
+                         males.allages.votes + females.allages.avg.vote + females.allages.votes + 
+                         top1000.voters.rating + top1000.voters.votes + non.us.voters.rating,data=USAMOVIESratings)
+  summary(StepAICmodelinfl)
+    #AIC= -9701.66
+    #R^2= 0.406 
+  
+  #BIC
+  StepBIC <- step(fullmodprofitinfl,direction="both", data=USAMOVIESratings, k=log(ninfl))
+  StepBICmodelinfl<-lm(logprofit ~ votes + reviews.from.critics + IsItHorror + IsItDrama + 
+                         mean.vote + males.allages.votes + females.allages.avg.vote + 
+                         females.allages.votes + top1000.voters.votes + non.us.voters.rating,data=USAMOVIESratings)
+  summary(StepBICmodelinfl)
+    #BIC= -9619.72
+    #R^2= 0.4047   
+    
+ 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+#Original Code/Models without Log  
+  
+  backAICmodelinfl<- lm(profit.infl ~ year + duration + avg.vote + votes + reviews.from.users + 
+                          reviews.from.critics + IsItHorror + IsItAction + IsItComedy + 
+                          IsItDrama + mean.vote + males.allages.votes + females.allages.avg.vote + 
+                          females.allages.votes + top1000.voters.rating + top1000.voters.votes + 
+                          us.voters.rating + us.voters.votes + non.us.voters.rating, data=USAMOVIESratings)
+  #AIC= 210847.5
+  #R^2= 0.3937 
   backBICmodelinfl<-lm(profit.infl ~ year + duration + avg.vote + votes + reviews.from.users + 
                          reviews.from.critics + IsItHorror + IsItDrama + mean.vote + 
                          males.allages.votes + females.allages.avg.vote + females.allages.votes + 
@@ -139,13 +237,7 @@ summary(best)
   summary(backBICmodelinfl)
   #BIC= 210951.8
   #R^2=  0.3927  
-
   
-###FORWARD AIC 
-  interceptinfl <- lm(profit.infl~1,data=USAMOVIESratings)
-  
-  forwardAICinfl <- step(interceptinfl,scope=list(lower=~1,upper=~year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes),direction="forward", data=USAMOVIESratings)
-  forwardAICinfl$coefficients
   forwardAICmodelinfl<-lm(profit.infl ~ votes + males.allages.votes + top1000.voters.votes + 
                             non.us.voters.votes + IsItDrama + duration + year + reviews.from.users + 
                             IsItHorror + reviews.from.critics + us.voters.votes + non.us.voters.rating + 
@@ -153,15 +245,6 @@ summary(best)
                             avg.vote + mean.vote + top1000.voters.rating + IsItAction + 
                             us.voters.rating,data=USAMOVIESratings)
   summary(forwardAICmodelinfl)
-  
-  #AIC= 210849
-  #R^2=0.3937 
-  
-  
-###FORWARD BIC 
-
-  forwardBICinfl <- step(interceptinfl,scope=list(lower=~1,upper=~year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes),direction="forward", data=USAMOVIESratings,k=log(ninfl))
-  forwardBICinfl$coefficients
   forwardBICmodelinfl<-lm(profit.infl ~ votes + males.allages.votes + top1000.voters.votes + 
                             non.us.voters.votes + IsItDrama + duration + year + reviews.from.users + 
                             IsItHorror + reviews.from.critics + us.voters.votes + non.us.voters.rating + 
@@ -171,28 +254,23 @@ summary(best)
   #BIC= 210970.3
   #R^2= 0.3906 
   
-###STEP
-  #AIC
-  StepAIC <- step(fullmodprofitinfl,direction="both", data=USAMOVIESratings)
+  #AIC= 210849
+  #R^2=0.3937
   StepAICmodelinfl<-lm(profit.infl ~ year + duration + avg.vote + votes + reviews.from.users + 
                          reviews.from.critics + IsItHorror + IsItAction + IsItComedy + 
                          IsItDrama + mean.vote + males.allages.votes + females.allages.avg.vote + 
                          females.allages.votes + top1000.voters.rating + top1000.voters.votes + 
                          us.voters.rating + us.voters.votes + non.us.voters.rating,data=USAMOVIESratings)
   summary(StepAICmodelinfl)
-    #AIC= 210847.5
-    #R^2= 0.3937 
-  
-  #BIC
-  StepBIC <- step(fullmodprofitinfl,direction="both", data=USAMOVIESratings, k=log(ninfl))
+  #AIC= 210847.5
+  #R^2= 0.3937 
   StepBICmodelinfl<-lm(profit.infl ~ year + duration + avg.vote + votes + reviews.from.users + 
                          reviews.from.critics + IsItHorror + IsItDrama + mean.vote + 
                          males.allages.votes + females.allages.avg.vote + females.allages.votes + 
                          top1000.voters.votes + us.voters.votes,data=USAMOVIESratings)
   summary(StepBICmodelinfl)
-    #BIC= 210951.8
-    #R^2= 0.3927  
-    
+  #BIC= 210951.8
+  #R^2= 0.3927  
   
   
   
