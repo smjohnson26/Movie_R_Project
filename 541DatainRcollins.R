@@ -2,93 +2,92 @@ setwd('C:/Users/CAM/Documents/MSBA/Fall/ST 541/Final Project/Movie_R_Project')
 library(readr)
 library(leaps)
 library("stringr")
-library(dplyr)
 library(ggplot2)
-library(ggplot)
 library(car)
-library(moments)
 
-
-
-#USAMOVIES <- read_csv("./USAMOVIES.csv")
+IMDb_movies <- read_csv("IMDb movies.csv")
 ratings <- read_csv("IMDb ratings.csv")
-USAMOVIES <- read_csv("USAMOVIES_INFL.csv")
-USAMOVIES <- select(USAMOVIES, -c("X1","Unnamed: 0","X","Unnamed..0"))
-
+cpi_rates <- read.csv("cpi_table.csv")
 names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
-names(USAMOVIES)<-str_replace_all(names(USAMOVIES), c("_" = "." , "," = "" ))
-USAMOVIES["IsItHorror"]<- 0
-USAMOVIES["IsItRomance"] <- 0
-USAMOVIES["IsItAction"] <- 0
-USAMOVIES["IsItComedy"] <- 0
-USAMOVIES["IsItDrama"] <- 0
-USAMOVIES$IsItHorror[grep("Horror",USAMOVIES$genre)] <- 1
-USAMOVIES$IsItRomance[grep("Romance",USAMOVIES$genre)] <- 1
-USAMOVIES$IsItAction[grep("Action",USAMOVIES$genre)] <- 1
-USAMOVIES$IsItComedy[grep("Comedy",USAMOVIES$genre)] <- 1
-USAMOVIES$IsItDrama[grep("Drama",USAMOVIES$genre)] <- 1
-USAMOVIES$IsItHorror<-as.factor(USAMOVIES$IsItHorror)
-USAMOVIES$IsItRomance<-as.factor(USAMOVIES$IsItRomance)
-USAMOVIES$IsItAction<-as.factor(USAMOVIES$IsItAction)
-USAMOVIES$IsItComedy<-as.factor(USAMOVIES$IsItComedy)
-USAMOVIES$IsItDrama<-as.factor(USAMOVIES$IsItDrama)
-#USAMOVIES$budget <- substr(USAMOVIES$budget, start = 2, stop = 15)
-#USAMOVIES$budget <- as.numeric(USAMOVIES$budget)
-#USAMOVIES$usa.gross.income <- substr(USAMOVIES$usa.gross.income, start = 2, stop = 15)
-#USAMOVIES$usa.gross.income <- as.numeric(USAMOVIES$usa.gross.income)
-#USAMOVIES$worlwide.gross.income <- substr(USAMOVIES$worlwide.gross.income, start = 2, stop = 15)
-#USAMOVIES$worlwide.gross.income <- as.numeric(USAMOVIES$worlwide.gross.income)
-#USAMOVIES$profit <-(USAMOVIES$worlwide.gross.income- USAMOVIES$budget)
+names(IMDb_movies)<-str_replace_all(names(IMDb_movies), c("_" = "." , "," = "" ))
+#rename 'worlwide' to 'worldwide'
+colnames(IMDb_movies)[19] <- "worldwide.gross.income"
+
+IMDb_movies["IsItHorror"]<- 0
+IMDb_movies["IsItRomance"] <- 0
+IMDb_movies["IsItAction"] <- 0
+IMDb_movies["IsItComedy"] <- 0
+IMDb_movies["IsItDrama"] <- 0
+IMDb_movies$IsItHorror[grep("Horror",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItRomance[grep("Romance",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItAction[grep("Action",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItComedy[grep("Comedy",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItDrama[grep("Drama",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItHorror<-as.factor(IMDb_movies$IsItHorror)
+IMDb_movies$IsItRomance<-as.factor(IMDb_movies$IsItRomance)
+IMDb_movies$IsItAction<-as.factor(IMDb_movies$IsItAction)
+IMDb_movies$IsItComedy<-as.factor(IMDb_movies$IsItComedy)
+IMDb_movies$IsItDrama<-as.factor(IMDb_movies$IsItDrama)
+
+budget <-IMDb_movies[!is.na(IMDb_movies$budget),]
+usamovies<-budget[!is.na(budget$usa.gross.income),]#worldwide
+usamovies1<-usamovies[!is.na(usamovies$country),]
+#usamovies2<-subset(usamovies1, usamovies1$country== "USA")
+usamovies2<-usamovies1[grep("USA",usamovies1$country),]
+usamovies2$Currency <- substr(usamovies2$budget, start = 1, stop = 3)
+for(value in 1:6605){
+  if(substr(usamovies2$Currency[value], start = 1, stop = 1)=="$"){
+    usamovies2$Currency[value] = "USD"
+  }
+}
+
+USAMOVIES<-subset(usamovies2, usamovies2$Currency== "USD")
+USAMOVIES$budget <- substr(USAMOVIES$budget, start = 2, stop = 15)
+USAMOVIES$usa.gross.income <- substr(USAMOVIES$usa.gross.income, start = 2, stop = 15)
+USAMOVIES$worldwide.gross.income <- substr(USAMOVIES$worldwide.gross.income, start = 2, stop = 15)
+USAMOVIES$budget <- as.numeric(USAMOVIES$budget)
+USAMOVIES$usa.gross.income <- as.numeric(USAMOVIES$usa.gross.income)
+USAMOVIES$worldwide.gross.income <- as.numeric(USAMOVIES$worldwide.gross.income)
+USAMOVIES$profit <-(USAMOVIES$worldwide.gross.income- USAMOVIES$budget)
+summary(USAMOVIES)
 
 
-#USAMOVIES<-USAMOVIES[!is.na(USAMOVIES$reviews.from.users)&!is.na(USAMOVIES$reviews.from.critics),]
-USAMOVIES <- select(USAMOVIES,-c("metascore"))
-#merge USAMOVIES with ratings
-ratings <- select(ratings,c("imdb.title.id","weighted.average.vote","mean.vote",
-                            "median.vote","males.allages.avg.vote","males.allages.votes",
-                            "females.allages.avg.vote","females.allages.votes",
-                            "top1000.voters.rating","top1000.voters.votes","us.voters.rating",
-                            "us.voters.votes","non.us.voters.rating","non.us.voters.votes"))
-USAMOVIESratings <- merge(USAMOVIES,ratings,by="imdb.title.id")
 
 
 
-attach(USAMOVIESratings)
-detach(USAMOVIESratings)
+#make year column into the index for cpi_rates dataframe
+row.names(cpi_rates) <- cpi_rates$Year
+cpi_rates[1] <- NULL
+cpi_2020 <-  cpi_rates["2020", 1]
+
+
+#Formula for inflated values: (original value * 2020 Consumer Price Index Value) / Consumer Price Index From Year of Release
+for(val in 1:nrow(USAMOVIES)){
+  USAMOVIES[val, "budg_infl"] <- (USAMOVIES[val, "budget"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "worldwide_gross_infl"] <- (USAMOVIES[val, "worldwide.gross.income"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "usa_gross_infl"] <- (USAMOVIES[val, "usa.gross.income"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "profit_infl"] <- (USAMOVIES[val, "profit"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+}
+
 
 year21<-subset(USAMOVIESratings, year>=2000)
 posprof<- subset(year21, profit.infl>0)
-negprofit<- subset(year21, profit.infl<=0)
-detach(year)
-attach(posprof)
-detach(posprof)
-attach(negprofit)
-detach(negprofit)
-p<-ggplot(negprofit, aes(x=logprofit)) + 
-  geom_histogram(aes(y=..density..), colour="black", fill="white")+
-  geom_density(alpha=.2, fill="#FF6666") + 
-  scale_x_continuous(breaks=seq(0, 10, 0.5)+scale_y_continuous(label = scales::comma))
-p+ geom_vline(aes(xintercept=mean(logprofit)),
-              color="blue", linetype="dashed", size=1) + ggtitle("Spread of Movie Budget")
+negprof<- subset(year21, profit.infl<=0)
+
+
 hist(trans)
 
 
 #What is the best way to predict the profit margin of a movie?--Collins
 
-minprof<- abs(min(profit.infl))
-normprofit <-profit.infl+minprof+1
-sqrt<- sqrt(normprofit)
-trans<-1/((minprof+1)-profit.infl)
-skewness(trans, na.rm = TRUE)
-logprofit<- log(normprofit)
-logprofit<- log(profit.infl)
+logprofitpos<- log(posprof$profit.infl)
+absprofit<- abs(negprof$profit.infl)
+logprofitneg<- log(absprofit)
+hist(logprofitneg)
 
-library(MASS)
-par(mfrow=c(1,2))
-boxcox(profit.infl)
-boxcox(m1,lambda=seq(0.325,0.34,length=20))
-
-fullmodprofitinfl<- lm(logprofit~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=negprofit)
+fullmodpos<- lm(logprofitpos~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=negprofit)
+summary(fullmodprofitinfl)
+fullmodneg<- lm(logprofitneg~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=negprofit)
 summary(fullmodprofitinfl)
 
 #####get to work
