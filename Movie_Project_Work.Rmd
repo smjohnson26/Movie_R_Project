@@ -8,33 +8,101 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-How are ratings affected by movie genre, movie duration, gender, or age group?
-
-
-##Reading in Data and Libraries and removing un-needed columns
-```{r}
-library(readr)
-library("stringr")
-library(dplyr)
-library(ggplot2)
-library(car)
-USAMOVIES <- read.csv("C:/Users/balli/Documents/Movie_R_Project/USAMOVIES_INFL.csv")
-summary(USAMOVIES)
-ratings <- read.csv("C:/Users/balli/Documents/Movie_R_Project/IMDb ratings.csv")
 names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
-names(USAMOVIES)<-str_replace_all(names(USAMOVIES), c("_" = "." , "," = "" ))
-USAMOVIES$profit <-(USAMOVIES$worldwide.gross.infl- USAMOVIES$budget.infl)
-USAMOVIES<-USAMOVIES[!is.na(USAMOVIES$reviews.from.users)&!is.na(USAMOVIES$reviews.from.critics),]
-USAMOVIES <- select(USAMOVIES,-c("metascore"))
+names(IMDb_movies)<-str_replace_all(names(IMDb_movies), c("_" = "." , "," = "" ))
+#rename 'worlwide' to 'worldwide'
+colnames(IMDb_movies)[19] <- "worldwide.gross.income"
+
+IMDb_movies["IsItHorror"]<- 0
+IMDb_movies["IsItRomance"] <- 0
+IMDb_movies["IsItAction"] <- 0
+IMDb_movies["IsItComedy"] <- 0
+IMDb_movies["IsItDrama"] <- 0
+IMDb_movies$IsItHorror[grep("Horror",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItRomance[grep("Romance",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItAction[grep("Action",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItComedy[grep("Comedy",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItDrama[grep("Drama",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItHorror<-as.factor(IMDb_movies$IsItHorror)
+IMDb_movies$IsItRomance<-as.factor(IMDb_movies$IsItRomance)
+IMDb_movies$IsItAction<-as.factor(IMDb_movies$IsItAction)
+IMDb_movies$IsItComedy<-as.factor(IMDb_movies$IsItComedy)
+IMDb_movies$IsItDrama<-as.factor(IMDb_movies$IsItDrama)
+
+
+IMDb_movies$budget[IMDb_movies$budget == ''] <- 'Unknown'
+budget <- IMDb_movies[(IMDb_movies$budget!= "Unknown"), ]
+budget$usa.gross.income[budget$usa.gross.income == ""] <- 'Unknown'
+usamovies <- budget[(budget$usa.gross.income!= "Unknown"), ]
+
+usamovies$country[usamovies$country == ""] <- 'Unknown'
+usamovies1 <- usamovies[(usamovies$country != "Unknown"), ]
+usamovies2<-usamovies1[grep("USA",usamovies1$country),]
+usamovies2$Currency <- substr(usamovies2$budget, start = 1, stop = 3)
+for(value in 1:6605){
+  if(substr(usamovies2$Currency[value], start = 1, stop = 1)=="$"){
+    usamovies2$Currency[value] = "USD"
+  }
+}
+
+USAMOVIES<-subset(usamovies2, usamovies2$Currency== "USD")
+USAMOVIES$budget <- substr(USAMOVIES$budget, start = 2, stop = 15)
+USAMOVIES$usa.gross.income <- substr(USAMOVIES$usa.gross.income, start = 2, stop = 15)
+USAMOVIES$worldwide.gross.income <- substr(USAMOVIES$worldwide.gross.income, start = 2, stop = 15)
+USAMOVIES$budget <- as.numeric(USAMOVIES$budget)
+USAMOVIES$usa.gross.income <- as.numeric(USAMOVIES$usa.gross.income)
+USAMOVIES$worldwide.gross.income <- as.numeric(USAMOVIES$worldwide.gross.income)
+USAMOVIES$profit <-(USAMOVIES$worldwide.gross.income- USAMOVIES$budget)
+summary(USAMOVIES)
+
+
+
+
+
+#make year column into the index for cpi_rates dataframe
+row.names(cpi_rates) <- cpi_rates$Year
+cpi_rates[1] <- NULL
+cpi_2020 <-  cpi_rates["2020", 1]
+
+
+#Formula for inflated values: (original value * 2020 Consumer Price Index Value) / Consumer Price Index From Year of Release
+for(val in 1:nrow(USAMOVIES)){
+  USAMOVIES[val, "budg_infl"] <- (USAMOVIES[val, "budget"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "worldwide_gross_infl"] <- (USAMOVIES[val, "worldwide.gross.income"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "usa_gross_infl"] <- (USAMOVIES[val, "usa.gross.income"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "profit_infl"] <- (USAMOVIES[val, "profit"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+}
+
 USAMOVIES1 <- USAMOVIES
 
-USAMOVIES1 <- select(USAMOVIES,-c("title","date.published","director","writer",
-"production.company","actors","description","Currency","reviews.from.users",
-"reviews.from.critics","votes","usa.gross.income","worlwide.gross.income"))
-ratings <- select(ratings,c("imdb.title.id","weighted.average.vote","allgenders.0age.avg.vote",
-"allgenders.18age.avg.vote","allgenders.30age.avg.vote","allgenders.45age.avg.vote",
-"females.allages.avg.vote","males.allages.avg.vote"))
+
 USAMOVIES1 <- merge(USAMOVIES1,ratings,by="imdb.title.id")
+
+
+
+
+
+
+
+
+
+How are ratings affected by movie genre, movie duration, gender, or age group?
+library(readr)
+library(leaps)
+library("stringr")
+library(ggplot2)
+library(car)
+setwd("C:\\Users\\balli\\Documents\\Movie_R_Project")
+##Reading in Data and Libraries and removing un-needed columns
+```{r}
+IMDb_movies <- read.csv("C:/Users/balli/Documents/Movie_R_Project/IMDb movies.csv")
+ratings <- read.csv("C:/Users/balli/Documents/Movie_R_Project/IMDb ratings.csv")
+cpi_rates <- read.csv("C:/Users/balli/Documents/Movie_R_Project/cpi_table.csv")
+names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
+names(IMDb_movies)<-str_replace_all(names(IMDb_movies), c("_" = "." , "," = "" ))
+#rename 'worlwide' to 'worldwide'
+colnames(IMDb_movies)[19] <- "worldwide.gross.income"
+
 ```
 
 
@@ -46,18 +114,74 @@ and horror. Movies can be both a comedy and a romance movie or any combination o
 genres. To deal with this, I decided to make five binary columns that described whether
 the genre or genres of the movie contained that specific type. 
 ```{r}
-USAMOVIES1["IsItHorror"]<- 0
-USAMOVIES1["IsItRomance"] <- 0
-USAMOVIES1["IsItAction"] <- 0
-USAMOVIES1["IsItComedy"] <- 0
-USAMOVIES1["IsItDrama"] <- 0
-USAMOVIES1$IsItHorror[grep("Horror",USAMOVIES1$genre)] <- 1
-USAMOVIES1$IsItRomance[grep("Romance",USAMOVIES1$genre)] <- 1
-USAMOVIES1$IsItAction[grep("Action",USAMOVIES1$genre)] <- 1
-USAMOVIES1$IsItComedy[grep("Comedy",USAMOVIES1$genre)] <- 1
-USAMOVIES1$IsItDrama[grep("Drama",USAMOVIES1$genre)] <- 1
+IMDb_movies["IsItHorror"]<- 0
+IMDb_movies["IsItRomance"] <- 0
+IMDb_movies["IsItAction"] <- 0
+IMDb_movies["IsItComedy"] <- 0
+IMDb_movies["IsItDrama"] <- 0
+IMDb_movies$IsItHorror[grep("Horror",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItRomance[grep("Romance",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItAction[grep("Action",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItComedy[grep("Comedy",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItDrama[grep("Drama",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItHorror<-as.factor(IMDb_movies$IsItHorror)
+IMDb_movies$IsItRomance<-as.factor(IMDb_movies$IsItRomance)
+IMDb_movies$IsItAction<-as.factor(IMDb_movies$IsItAction)
+IMDb_movies$IsItComedy<-as.factor(IMDb_movies$IsItComedy)
+IMDb_movies$IsItDrama<-as.factor(IMDb_movies$IsItDrama)
+```
+## Extra work
+
+```{r}
+budget <-IMDb_movies[!is.na(IMDb_movies$budget),]
+usamovies<-budget[!is.na(budget$usa.gross.income),]#worldwide
+usamovies1<-usamovies[!is.na(usamovies$country),]
+#usamovies2<-subset(usamovies1, usamovies1$country== "USA")
+usamovies2<-usamovies1[grep("USA",usamovies1$country),]
+usamovies2$Currency <- substr(usamovies2$budget, start = 1, stop = 3)
+for(value in 1:6605){
+  if(substr(usamovies2$Currency[value], start = 1, stop = 1)=="$"){
+    usamovies2$Currency[value] = "USD"
+  }
+}
+
+USAMOVIES<-subset(usamovies2, usamovies2$Currency== "USD")
+USAMOVIES$budget <- substr(USAMOVIES$budget, start = 2, stop = 15)
+USAMOVIES$usa.gross.income <- substr(USAMOVIES$usa.gross.income, start = 2, stop = 15)
+USAMOVIES$worldwide.gross.income <- substr(USAMOVIES$worldwide.gross.income, start = 2, stop = 15)
+USAMOVIES$budget <- as.numeric(USAMOVIES$budget)
+USAMOVIES$usa.gross.income <- as.numeric(USAMOVIES$usa.gross.income)
+USAMOVIES$worldwide.gross.income <- as.numeric(USAMOVIES$worldwide.gross.income)
+USAMOVIES$profit <-(USAMOVIES$worldwide.gross.income- USAMOVIES$budget)
+```
+## make year column into the index for cpi_rates dataframe
+```{r}
+row.names(cpi_rates) <- cpi_rates$Year
+cpi_rates[1] <- NULL
+cpi_2020 <-  cpi_rates["2020", 1]
 ```
 
+
+## Formula for inflated values: (original value * 2020 Consumer Price Index Value) / Consumer Price Index From Year of Release
+```{r}
+for(val in 1:nrow(USAMOVIES)){
+  USAMOVIES[val, "budg_infl"] <- (USAMOVIES[val, "budget"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "worldwide_gross_infl"] <- (USAMOVIES[val, "worldwide.gross.income"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "usa_gross_infl"] <- (USAMOVIES[val, "usa.gross.income"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "profit_infl"] <- (USAMOVIES[val, "profit"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+}
+
+USAMOVIES1 <- USAMOVIES
+
+USAMOVIES1 <- select(USAMOVIES,-c("title","date.published","director","writer",
+"production.company","actors","description","Currency","reviews.from.users",
+"reviews.from.critics","votes","usa.gross.income","worldwide.gross.income"))
+ratings <- select(ratings,c("imdb.title.id","weighted.average.vote","allgenders.0age.avg.vote",
+"allgenders.18age.avg.vote","allgenders.30age.avg.vote","allgenders.45age.avg.vote",
+"females.allages.avg.vote","males.allages.avg.vote"))
+USAMOVIES1 <- merge(USAMOVIES1,ratings,by="imdb.title.id")
+```
+summary(USAMOVIES)
 ## Are ratings affected by genre?
 
 ```{r}
@@ -80,8 +204,8 @@ Horror <- subset(USAMOVIES1, IsItHorror == 1, select = c(avg.vote))
 NoHorror <- subset(USAMOVIES1, IsItHorror == 0, select = c(avg.vote))
 t.test(Horror,NoHorror)
 ```
-Based on the t-test above, we can see there is a difference between -.7249547 and 
--.5494581 with a 95% confidence interval. Because of this interval, there is a significant 
+Based on the t-test above, we can see there is a difference between -0.7031330 and 
+-0.5389663 with a 95% confidence interval. Because of this interval, there is a significant 
 difference in the means of these groups of movies. This shows that horror movies will have 
 a lower rating in general compared to other movie types. The histograms below show this spread.
 ```{r}
@@ -102,8 +226,8 @@ Romance <- subset(USAMOVIES1, IsItRomance == 1, select = c(avg.vote))
 NoRomance <- subset(USAMOVIES1, IsItRomance == 0, select = c(avg.vote))
 t.test(Romance, NoRomance)
 ```
-Based on the t-test above, we can see there is a difference between -0.10564471 and 
-0.01899697 with a 95% confidence interval. Because of this interval, there is not a significant 
+Based on the t-test above, we can see there is a difference between -0.07828863 and 
+0.03853488 with a 95% confidence interval. Because of this interval, there is not a significant 
 difference in the means of these groups of movies due to the fact that our confidence 
 interval includes 0. This means that the ratings of a Romance movie and a non-romantic
 movie will not have a significant difference in mean based on the genre.The histograms
@@ -129,8 +253,8 @@ Action <- subset(USAMOVIES1, IsItAction == 1, select = c(avg.vote))
 NoAction <- subset(USAMOVIES1, IsItAction == 0, select = c(avg.vote))
 t.test(Action,NoAction)
 ```
-Based on the t-test above, we can see there is a difference between -0.14717992 and 
--0.02210198 with a 95% confidence interval. Because of this interval, there is a significant 
+Based on the t-test above, we can see there is a difference between -0.17345224 and 
+-0.05673903 with a 95% confidence interval. Because of this interval, there is a significant 
 difference in the means of these groups of movies. This shows that action movies will have 
 a slightly lower rating in general compared to other movie types. The histograms below show this spread.
 
@@ -154,8 +278,8 @@ Comedy <- subset(USAMOVIES1, IsItComedy == 1, select = c(avg.vote))
 NoComedy <- subset(USAMOVIES1, IsItComedy == 0, select = c(avg.vote))
 t.test(Comedy,NoComedy)
 ```
-Based on the t-test above, we can see there is a difference between -0.3327587 and 
--0.2255355 with a 95% confidence interval. Because of this interval, there is a significant 
+Based on the t-test above, we can see there is a difference between -0.3428530 and 
+-0.2429231 with a 95% confidence interval. Because of this interval, there is a significant 
 difference in the means of these groups of movies. This shows that comedy movies will have 
 a lower rating in general compared to other movie types. The histograms below show this spread.
 
@@ -179,8 +303,8 @@ Drama <- subset(USAMOVIES1, IsItDrama == 1, select = c(avg.vote))
 NoDrama <- subset(USAMOVIES1, IsItDrama == 0, select = c(avg.vote))
 t.test(Drama,NoDrama)
 ```
-Based on the t-test above, we can see there is a difference between 0.4676931 and 
-0.5725751 with a 95% confidence interval. Because of this interval, there is a significant 
+Based on the t-test above, we can see there is a difference between 0.4930031 and 
+0.5904080 with a 95% confidence interval. Because of this interval, there is a significant 
 difference in the means of these groups of movies. This shows that dramatic movies will have 
 a higher rating in general compared to other movie types. The histograms below show this spread.
 
@@ -204,7 +328,7 @@ We shift gears in this section from genres into whether gender plays a role in t
 average rating of a movie. The t-test below checks to see if their is a significant 
 difference in the means of the female's average vote and the male's average vote. 
 We can see from the test that females vote more positivitely for movies on average
-in a range from 0.1765551 to 0.2521195 on a 95% percent confidence interval. 
+in a range from 0.1812546 to 0.2513334 on a 95% percent confidence interval. 
 ```{r}
 t.test(females.allages.avg.vote,males.allages.avg.vote)
 ```
@@ -231,7 +355,7 @@ and action movie genres.
 Romance1 <- subset(USAMOVIES1, IsItRomance == 1, select = c(avg.vote,males.allages.avg.vote,females.allages.avg.vote))
 t.test(Romance1$females.allages.avg.vote,Romance1$males.allages.avg.vote)
 ```
-We can see from the t-test above that women will vote between 0.1824913 and 0.3375087
+We can see from the t-test above that women will vote between 0.1912656 and 0.3371316
 points higher than males on movies in the female category in a 95% confidence interval.
 Below you can see that spread in a box plot:
 ```{r}
@@ -245,7 +369,7 @@ col = c("pink","blue"))
 Action1 <- subset(USAMOVIES1, IsItAction == 1, select = c(avg.vote,males.allages.avg.vote,females.allages.avg.vote))
 t.test(Action1$females.allages.avg.vote,Action1$males.allages.avg.vote)
 ```
-We can see from the t-test above that women will vote between 0.08886368 and 0.23874368
+We can see from the t-test above that women will vote between 0.1003357 and 0.2405763
 points higher than males on movies in the female category in a 95% confidence interval.
 This contradicts the stereotype that males like action movies more than females.
 Below you can see that spread in a box plot:
