@@ -1,0 +1,201 @@
+---
+title: "ST_541_FinalProject"
+author: "Collins Mills, Mary Strickland, Carter Lockwood, Steven Johnson"
+date: "December 9th 2020"
+output: pdf_document
+---
+# Data Insert and Cleaning
+```{r setup, include=FALSE}
+library(readr)
+library(leaps)
+library("stringr")
+library(ggplot2)
+library(car)
+library(dplyr)
+
+IMDb_movies <- read.csv(file = "./IMDb movies.csv", header=TRUE)
+ratings <- read.csv(file = "./IMDb ratings.csv", header=TRUE)
+cpi_rates <- read.csv(file = "./cpi_table.csv", header=TRUE)
+```
+## Renaming and inserting columns
+```{r}
+names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
+names(IMDb_movies)<-str_replace_all(names(IMDb_movies), c("_" = "." , "," = "" ))
+#rename 'worlwide' to 'worldwide'
+colnames(IMDb_movies)[19] <- "worldwide.gross.income"
+#Inserting dummy variables to account for Movie Genres originally combined into one column.
+IMDb_movies["IsItHorror"]<- 0
+IMDb_movies["IsItRomance"] <- 0
+IMDb_movies["IsItAction"] <- 0
+IMDb_movies["IsItComedy"] <- 0
+IMDb_movies["IsItDrama"] <- 0
+IMDb_movies$IsItHorror[grep("Horror",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItRomance[grep("Romance",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItAction[grep("Action",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItComedy[grep("Comedy",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItDrama[grep("Drama",IMDb_movies$genre)] <- 1
+IMDb_movies$IsItHorror<-as.factor(IMDb_movies$IsItHorror)
+IMDb_movies$IsItRomance<-as.factor(IMDb_movies$IsItRomance)
+IMDb_movies$IsItAction<-as.factor(IMDb_movies$IsItAction)
+IMDb_movies$IsItComedy<-as.factor(IMDb_movies$IsItComedy)
+IMDb_movies$IsItDrama<-as.factor(IMDb_movies$IsItDrama)
+```
+
+## Data Subsetting
+
+```{r}
+#To account for NA records and extracting only records where the movie was made in the USA. 
+#This decision was made to focus analysis and minimize the dataset. 
+budget <-IMDb_movies[!is.na(IMDb_movies$budget),]
+usamovies<-budget[!is.na(budget$usa.gross.income),]
+usamovies1<-usamovies[!is.na(usamovies$country),]
+usamovies2<-usamovies1[grep("USA",usamovies1$country),]
+#Inserting a currency column to account for only records where profit was measure in dollars.
+# This eliminated the need to convert currency and created consistency in the dataset.
+usamovies2$Currency <- substr(usamovies2$budget, start = 1, stop = 3)
+for(value in 1:6605){
+  if(substr(usamovies2$Currency[value], start = 1, stop = 1)=="$"){
+    usamovies2$Currency[value] = "USD"
+  }
+}
+USAMOVIES<-subset(usamovies2, usamovies2$Currency== "USD")
+#Recreating budget and gross income columns to remove "$" and change type to numeric
+USAMOVIES$budget <- substr(USAMOVIES$budget, start = 2, stop = 15)
+USAMOVIES$usa.gross.income <- substr(USAMOVIES$usa.gross.income, start = 2, stop = 15)
+USAMOVIES$worldwide.gross.income <- substr(USAMOVIES$worldwide.gross.income, start = 2, stop = 15)
+USAMOVIES$budget <- as.numeric(USAMOVIES$budget)
+USAMOVIES$usa.gross.income <- as.numeric(USAMOVIES$usa.gross.income)
+USAMOVIES$worldwide.gross.income <- as.numeric(USAMOVIES$worldwide.gross.income)
+#Creating of profit column under the assumption that all budget was used and world wide gross income is the best representation of money earned.
+USAMOVIES$profit <-(USAMOVIES$worldwide.gross.income- USAMOVIES$budget)
+
+#make year column into the index for cpi_rates dataframe
+row.names(cpi_rates) <- cpi_rates$Year
+cpi_rates[1] <- NULL
+cpi_2020 <-  cpi_rates["2020", 1]
+
+
+#Formula for inflated values: (original value * 2020 Consumer Price Index Value) / Consumer Price Index From Year of Release
+for(val in 1:nrow(USAMOVIES)){
+  USAMOVIES[val, "budg_infl"] <- (USAMOVIES[val, "budget"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "worldwide_gross_infl"] <- (USAMOVIES[val, "worldwide.gross.income"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "usa_gross_infl"] <- (USAMOVIES[val, "usa.gross.income"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+  USAMOVIES[val, "profit_infl"] <- (USAMOVIES[val, "profit"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
+}
+names(USAMOVIES)<-str_replace_all(names(USAMOVIES), c("_" = "." , "," = "" ))
+
+summary(USAMOVIES)
+```
+# Successful Movies
+## What does our data look like? Do any changes or transformations need to be made to the data to more accurately represent successful movies?
+## How does profit and budget change over time?
+## Does the budget have an effect on the profit margins, and user ratings of the movie?
+## What is the best way to predict the profit of a movie?
+To approach best assessing profit, Multiple Linear Regression is chosen as the best analytical method. Models will be assessed using Stepwise regression using both BIC and AIC. Profit will be assessed for movies created in the 21st century as profit seems to level out based on the time series graphs. Dataset will split into two and evaluated separately to account for movies where profit is positive or negative.
+A final model will be chosen, if possible, based on above criteria. 
+### Data subset and Transformation
+```{r}
+#removing metascore instead of rows with NA's because of the number of NA's that cause problems in the models.
+USAMOVIES <- select(USAMOVIES,-c("metascore"))
+#merging dataset to include ratings dataset to incorporate more information that might explain profit
+ratings<- select(ratings,c("imdb.title.id","mean.vote","median.vote","males.allages.avg.vote","males.allages.votes","females.allages.avg.vote","females.allages.votes","top1000.voters.rating","top1000.voters.votes","us.voters.rating","us.voters.votes","non.us.voters.rating","non.us.voters.votes"))
+USAMOVIESratings <- merge(USAMOVIES,ratings,by="imdb.title.id")
+USAMOVIESratings<- USAMOVIESratings[!is.na(USAMOVIESratings$reviews.from.users),]
+USAMOVIESratings<- USAMOVIESratings[!is.na(USAMOVIESratings$reviews.from.critics),]
+
+#subsetting dataset to only account for movies from 2000 on.
+year21<-subset(USAMOVIESratings, year>=2000)
+#subsetting dataset to separate movies where profit as positive or negative
+posprof<- subset(year21, year21$profit.infl>0)
+negprof<- subset(year21, year21$profit.infl<=0)
+```
+Because of the skewedness of the profit variable, profit has been transformed to account for the constant variance assumption in linear regression. Log transformation was orginally not taken into account but corrected upon realizing skewedness.
+```{r}
+logprofitpos<- log(posprof$profit.infl)
+#removal of na values from the negative dataset to account for errors in model.
+negprof<- negprof[!is.na(negprof$reviews.from.users),]
+negprof<- negprof[!is.na(negprof$reviews.from.critics),]
+#Using a cubed root transformation because log and sqrt transformation were not powerful enough due to the severe skewedness of profit.
+absprofit<- abs(negprof$profit.infl)
+logprofitneg<- (absprofit)^(1/3)
+```
+
+### Full Model
+
+Creation of a Full Model from both the positive and negative datasets.
+```{r}
+fullmodpos<- lm(logprofitpos~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=posprof)
+summary(fullmodpos)
+
+fullmodneg<- lm(logprofitneg~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=negprof)
+summary(fullmodneg)
+```
+
+Using stepwise regression for model evaluation. Initially used Backwards and Forwards but appeared redundant and stepwise accounted better than both.
+
+### AIC
+```{r}
+  StepAICpos <- step(fullmodpos,direction="both", data=posprof)
+  StepAICmodpos<-lm(logprofitpos ~ year + duration + avg.vote + votes + reviews.from.users + 
+                      reviews.from.critics + IsItRomance + IsItAction + IsItComedy + 
+                      IsItDrama + males.allages.avg.vote + females.allages.avg.vote + 
+                      females.allages.votes + top1000.voters.rating + top1000.voters.votes + 
+                      us.voters.rating + non.us.voters.votes,data=posprof)
+  summary(StepAICmodpos)
+  
+```
+Output for positive profit dataset using AIC:
+    #AIC= 929.51
+    #R^2= 0.597  
+```{r}
+  StepAICneg <- step(fullmodneg,direction="both", data=negprof)
+  StepAICmodneg<-lm(logprofitneg ~ year + duration + reviews.from.critics + IsItHorror + 
+                      IsItAction + IsItComedy + IsItDrama + mean.vote + males.allages.avg.vote + 
+                      males.allages.votes + females.allages.avg.vote + females.allages.votes + 
+                      top1000.voters.votes + us.voters.rating + us.voters.votes + 
+                      non.us.voters.votes,data=negprof)
+  summary(StepAICmodneg)
+```
+Output for negative profit dataset using AIC:
+  #AIC= 12824.73
+  #R^2= 0.3681   
+  
+### BIC  
+Creating variable for BIC evaluation
+```{r}  
+  npos <- length(fullmodpos$residuals)
+  nneg <- length(fullmodneg$residuals)
+```
+
+
+```{r}
+  StepBIC <- step(fullmodpos,direction="both", data=posprof, k=log(npos))
+  StepBICmodelpos<-lm(logprofitpos ~ year + duration + avg.vote + votes + reviews.from.users + 
+                         reviews.from.critics + IsItComedy + IsItDrama + males.allages.avg.vote + 
+                         females.allages.avg.vote + females.allages.votes + top1000.voters.votes + 
+                         us.voters.rating + non.us.voters.votes,data=posprof)
+  summary(StepBICmodelpos)
+```
+Output for positive profit dataset using BIC:
+    #BIC= 1022.99
+    #R^2= 0.5955   
+```{r}
+  StepBIC <- step(fullmodneg,direction="both", data=negprof, k=log(nneg))
+  StepBICmodelneg<-lm(logprofitneg ~ duration + reviews.from.critics + IsItHorror + 
+                        IsItAction + mean.vote + males.allages.avg.vote + males.allages.votes + 
+                        females.allages.avg.vote + females.allages.votes + top1000.voters.votes + 
+                        us.voters.rating + us.voters.votes + non.us.voters.votes,data=negprof)
+  summary(StepBICmodelneg)
+```
+Output for negative profit dataset using BIC:
+  #BIC= 12905.24
+  #R^2= 0.3643  
+### Final Model
+  The best assessment of profit is StepAICmodpos where AIC= 929.51 and R^2= 0.597. The final model has 3 more variables then its counter part using BIC but explains slightly more variance and has a lower AIC.
+  The variables in the final model include: year,duration,avg.vote,votes,reviews.from.users,reviews.from.critics,IsItComedy,IsItDrama,males.allages.avg.vote,females.allages.avg.vote,females.allages.votes,top1000.voters.votes,us.voters.rating,non.us.voters.votes. 
+  A R^2 of 0.597 that the model does an adequate job of understand why a movie is profitable. However, there is room for improvement outside the scope of the dataset. 
+  Even though both model for the negative dataset were significant, based on the R^2 are adequate to explain why a movie did not make money.
+  Overall through MLR and separating the dataset, it can be explained why a movie from 2000-2020 is able to make money. However, it cannot explain why a movie would not make money.
+
+## Are production companies a significant variable when discussing the success of a movie?
+## How are ratings affected by movie genre, movie duration, gender?
