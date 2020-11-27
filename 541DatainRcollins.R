@@ -68,32 +68,31 @@ for(val in 1:nrow(USAMOVIES)){
   USAMOVIES[val, "usa_gross_infl"] <- (USAMOVIES[val, "usa.gross.income"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
   USAMOVIES[val, "profit_infl"] <- (USAMOVIES[val, "profit"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
 }
+names(USAMOVIES)<-str_replace_all(names(USAMOVIES), c("_" = "." , "," = "" ))
+#merging dataset to include ratings dataset to incorporate more information that migt
+
+#subsetting dataset to only account for movies from 2000 on.
+year21<-subset(USAMOVIES, year>=2000)
+#subsetting dataset to separate movies where profit as positive or negative
+posprof<- subset(year21, year21$profit.infl>0)
+negprof<- subset(year21, year21$profit.infl<=0)
 
 
-year21<-subset(USAMOVIESratings, year>=2000)
-posprof<- subset(year21, profit.infl>0)
-negprof<- subset(year21, profit.infl<=0)
-
-
-hist(trans)
 
 
 #What is the best way to predict the profit margin of a movie?--Collins
 
+#initially did not transform profit but after analysis reran with log of profit. 
 logprofitpos<- log(posprof$profit.infl)
 absprofit<- abs(negprof$profit.infl)
-logprofitneg<- log(absprofit)
+logprofitneg<- (absprofit)^(1/3)
 hist(logprofitneg)
-
-fullmodpos<- lm(logprofitpos~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=negprofit)
+#mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes
+fullmodpos<- lm(logprofitpos~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama, data=posprof)
 summary(fullmodprofitinfl)
 fullmodneg<- lm(logprofitneg~ year+ duration +avg.vote+votes+reviews.from.users+reviews.from.critics+IsItHorror+IsItRomance+IsItAction+IsItComedy+IsItDrama+mean.vote+median.vote+males.allages.avg.vote+males.allages.votes+females.allages.avg.vote+females.allages.votes+top1000.voters.rating+top1000.voters.votes+us.voters.rating+us.voters.votes+non.us.voters.rating+non.us.voters.votes, data=negprofit)
 summary(fullmodprofitinfl)
 
-#####get to work
-allinputs<-cbind(year,duration,avg.vote,votes,reviews.from.users,reviews.from.critics,IsItHorror,IsItRomance,IsItAction,IsItComedy,IsItDrama,weighted.average.vote,mean.vote,median.vote,males.allages.avg.vote,males.allages.votes,females.allages.avg.vote,females.allages.votes,top1000.voters.rating,top1000.voters.votes,us.voters.rating,us.voters.votes,non.us.voters.rating,non.us.voters.votes, data=posprof)
-best <- regsubsets(as.matrix(allinputs), logprofit)
-summary(best)
 
 
 ###BACK AIC
