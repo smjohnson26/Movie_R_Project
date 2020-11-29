@@ -61,20 +61,15 @@ str(USAMOVIESratings)
 summary(USAMOVIESratings[, c("production.company","profit", "profit.infl", "weighted.average.vote", "mean.vote")])
 
 
-production.comp.analysis <- USAMOVIESratings[c(3,12, 24, 28, 29, 31)]
-
 # Finding the production companies with the most movies
-prod_comp_groups <- count(group_by(production.comp.analysis,production.company))
+prod_comp_groups <- count(group_by(USAMOVIESratings,production.company))
 prod_co_groups_num_movies <- arrange(prod_comp_groups,-n)
 
 top_companies_list <- prod_co_groups_num_movies[prod_co_groups_num_movies$n > 50,]
 
-#top_quarter_prod_cos <- num_prod_co_groups[ num_prod_co_groups$n > quantile(num_prod_co_groups$n , 0.75 ) , ]
-#others <- num_prod_co_groups[ num_prod_co_groups$n <= quantile(num_prod_co_groups$n , 0.75 ) , ]
-
 movies_by_top_companies <- production.comp.analysis[production.company %in% top_companies_list$production.company,]
 
-summary(movies_by_top_companies)
+summary(movies_by_top_companies[,c("production.company","profit", "profit.infl", "weighted.average.vote", "mean.vote")])
 
 attach(movies_by_top_companies)
 
