@@ -191,9 +191,9 @@ Output for negative profit dataset using BIC:
   #BIC= 12905.24
   #R^2= 0.3643  
 ### Final Model
-  The best assessment of profit is StepAICmodpos where AIC= 929.51 and R^2= 0.597. The final model has 3 more variables then its counter part using BIC but explains slightly more variance and has a lower AIC.
+  The best assessment of profit is StepBICmodpos where BIC= 1022.99 and R^2= 0.5955. The final model has 3 less variables then its counter part using BIC. The difference between the two models R^2 is less than 2% difference, therefore the simpler model was chosen. With this model all variables are significant in the model.
   The variables in the final model include: year,duration,avg.vote,votes,reviews.from.users,reviews.from.critics,IsItComedy,IsItDrama,males.allages.avg.vote,females.allages.avg.vote,females.allages.votes,top1000.voters.votes,us.voters.rating,non.us.voters.votes. 
-  A R^2 of 0.597 that the model does an adequate job of understand why a movie is profitable. However, there is room for improvement outside the scope of the dataset. 
+  A R^2 of 0.5955 that the model does an adequate job of understand why a movie is profitable. However, there is room for improvement outside the scope of the dataset. 
   Even though both model for the negative dataset were significant, based on the R^2 are adequate to explain why a movie did not make money.
   Overall through MLR and separating the dataset, it can be explained why a movie from 2000-2020 is able to make money. However, it cannot explain why a movie would not make money.
 
