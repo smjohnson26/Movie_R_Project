@@ -8,6 +8,16 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+library(readr)
+library(leaps)
+library("stringr")
+library(ggplot2)
+library(car)
+
+IMDb_movies <- read.csv("C:/Users/balli/Documents/Movie_R_Project/imdb movies.csv")
+ratings <- read.csv("C:/Users/balli/Documents/Movie_R_Project/IMDb ratings.csv")
+cpi_rates <- read_csv("C:/Users/balli/Documents/Movie_R_Project/cpi_table.csv")
 names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
 names(IMDb_movies)<-str_replace_all(names(IMDb_movies), c("_" = "." , "," = "" ))
 #rename 'worlwide' to 'worldwide'
@@ -87,33 +97,23 @@ USAMOVIES1 <- merge(USAMOVIES1,ratings,by="imdb.title.id")
 
 
 How are ratings affected by movie genre, movie duration, gender, or age group?
+```{r}
+
+setwd("C:\\Users\\balli\\Documents\\Movie_R_Project")
 library(readr)
 library(leaps)
 library("stringr")
 library(ggplot2)
 library(car)
-setwd("C:\\Users\\balli\\Documents\\Movie_R_Project")
-##Reading in Data and Libraries and removing un-needed columns
-```{r}
-IMDb_movies <- read.csv("C:/Users/balli/Documents/Movie_R_Project/IMDb movies.csv")
+
+IMDb_movies <- read.csv("C:/Users/balli/Documents/Movie_R_Project/imdb movies.csv")
 ratings <- read.csv("C:/Users/balli/Documents/Movie_R_Project/IMDb ratings.csv")
-cpi_rates <- read.csv("C:/Users/balli/Documents/Movie_R_Project/cpi_table.csv")
+cpi_rates <- read_csv("C:/Users/balli/Documents/Movie_R_Project/cpi_table.csv")
 names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
 names(IMDb_movies)<-str_replace_all(names(IMDb_movies), c("_" = "." , "," = "" ))
 #rename 'worlwide' to 'worldwide'
 colnames(IMDb_movies)[19] <- "worldwide.gross.income"
 
-```
-
-
-##Setting up Columns for Genres
-While movies can have a multitude of genres and even multiple genres to describe 
-their specific style, I thought it would be worthwhile to look at the top five
-genres listed for types of movies. These genres were drama, comedy, action, romance,
-and horror. Movies can be both a comedy and a romance movie or any combination of the
-genres. To deal with this, I decided to make five binary columns that described whether
-the genre or genres of the movie contained that specific type. 
-```{r}
 IMDb_movies["IsItHorror"]<- 0
 IMDb_movies["IsItRomance"] <- 0
 IMDb_movies["IsItAction"] <- 0
@@ -129,14 +129,15 @@ IMDb_movies$IsItRomance<-as.factor(IMDb_movies$IsItRomance)
 IMDb_movies$IsItAction<-as.factor(IMDb_movies$IsItAction)
 IMDb_movies$IsItComedy<-as.factor(IMDb_movies$IsItComedy)
 IMDb_movies$IsItDrama<-as.factor(IMDb_movies$IsItDrama)
-```
-## Extra work
 
-```{r}
-budget <-IMDb_movies[!is.na(IMDb_movies$budget),]
-usamovies<-budget[!is.na(budget$usa.gross.income),]#worldwide
-usamovies1<-usamovies[!is.na(usamovies$country),]
-#usamovies2<-subset(usamovies1, usamovies1$country== "USA")
+
+IMDb_movies$budget[IMDb_movies$budget == ''] <- 'Unknown'
+budget <- IMDb_movies[(IMDb_movies$budget!= "Unknown"), ]
+budget$usa.gross.income[budget$usa.gross.income == ""] <- 'Unknown'
+usamovies <- budget[(budget$usa.gross.income!= "Unknown"), ]
+
+usamovies$country[usamovies$country == ""] <- 'Unknown'
+usamovies1 <- usamovies[(usamovies$country != "Unknown"), ]
 usamovies2<-usamovies1[grep("USA",usamovies1$country),]
 usamovies2$Currency <- substr(usamovies2$budget, start = 1, stop = 3)
 for(value in 1:6605){
@@ -153,17 +154,19 @@ USAMOVIES$budget <- as.numeric(USAMOVIES$budget)
 USAMOVIES$usa.gross.income <- as.numeric(USAMOVIES$usa.gross.income)
 USAMOVIES$worldwide.gross.income <- as.numeric(USAMOVIES$worldwide.gross.income)
 USAMOVIES$profit <-(USAMOVIES$worldwide.gross.income- USAMOVIES$budget)
-```
-## make year column into the index for cpi_rates dataframe
-```{r}
+summary(USAMOVIES)
+
+
+
+
+
+#make year column into the index for cpi_rates dataframe
 row.names(cpi_rates) <- cpi_rates$Year
 cpi_rates[1] <- NULL
 cpi_2020 <-  cpi_rates["2020", 1]
-```
 
 
-## Formula for inflated values: (original value * 2020 Consumer Price Index Value) / Consumer Price Index From Year of Release
-```{r}
+#Formula for inflated values: (original value * 2020 Consumer Price Index Value) / Consumer Price Index From Year of Release
 for(val in 1:nrow(USAMOVIES)){
   USAMOVIES[val, "budg_infl"] <- (USAMOVIES[val, "budget"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
   USAMOVIES[val, "worldwide_gross_infl"] <- (USAMOVIES[val, "worldwide.gross.income"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
@@ -173,15 +176,23 @@ for(val in 1:nrow(USAMOVIES)){
 
 USAMOVIES1 <- USAMOVIES
 
-USAMOVIES1 <- select(USAMOVIES,-c("title","date.published","director","writer",
-"production.company","actors","description","Currency","reviews.from.users",
-"reviews.from.critics","votes","usa.gross.income","worldwide.gross.income"))
-ratings <- select(ratings,c("imdb.title.id","weighted.average.vote","allgenders.0age.avg.vote",
-"allgenders.18age.avg.vote","allgenders.30age.avg.vote","allgenders.45age.avg.vote",
-"females.allages.avg.vote","males.allages.avg.vote"))
+
 USAMOVIES1 <- merge(USAMOVIES1,ratings,by="imdb.title.id")
 ```
-summary(USAMOVIES)
+
+##Setting up Columns for Genres
+While movies can have a multitude of genres and even multiple genres to describe 
+their specific style, I thought it would be worthwhile to look at the top five
+genres listed for types of movies. These genres were drama, comedy, action, romance,
+and horror. Movies can be both a comedy and a romance movie or any combination of the
+genres. To deal with this, I decided to make five binary columns that described whether
+the genre or genres of the movie contained that specific type. 
+
+
+
+
+
+
 ## Are ratings affected by genre?
 
 ```{r}
@@ -356,7 +367,7 @@ Romance1 <- subset(USAMOVIES1, IsItRomance == 1, select = c(avg.vote,males.allag
 t.test(Romance1$females.allages.avg.vote,Romance1$males.allages.avg.vote)
 ```
 We can see from the t-test above that women will vote between 0.1912656 and 0.3371316
-points higher than males on movies in the female category in a 95% confidence interval.
+points higher than males on movies in the romance category in a 95% confidence interval.
 Below you can see that spread in a box plot:
 ```{r}
 boxplot(Romance1$females.allages.avg.vote,Romance1$males.allages.avg.vote,
