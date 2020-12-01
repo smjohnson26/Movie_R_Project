@@ -102,6 +102,7 @@ ratings<- select(ratings,c("imdb.title.id","mean.vote","median.vote","males.alla
 USAMOVIESratings <- merge(USAMOVIES,ratings,by="imdb.title.id")
 USAMOVIESratings<- USAMOVIESratings[!is.na(USAMOVIESratings$reviews.from.users),]
 USAMOVIESratings<- USAMOVIESratings[!is.na(USAMOVIESratings$reviews.from.critics),]
+USAMOVIES1 <- USAMOVIESratings
 
 #subsetting dataset to only account for movies from 2000 on.
 year21<-subset(USAMOVIESratings, year>=2000)
@@ -199,3 +200,240 @@ Output for negative profit dataset using BIC:
 
 ## Are production companies a significant variable when discussing the success of a movie?
 ## How are ratings affected by movie genre, movie duration, gender?
+
+### Genres
+```{r}
+attach(USAMOVIES1)
+lm_all <- lm(avg.vote ~ IsItHorror + IsItRomance + IsItAction + IsItComedy + IsItDrama)
+summary(lm_all)
+```
+Above, I ran a multiple linear regression that tried to predict the average vote based
+on the top five genres I discussed in the previous section. Based on the summary,
+the model is significant and all variables are also significant. This tells us that 
+the genre of a movie will affect the voting on the quality of the movie. Below, I 
+examine using t.tests whether there is a significance between the difference of means
+of movies of a specific genre type and movies that do not contain that genre.
+
+## Horror Plots
+### T-Tests
+```{r}
+Horror <- subset(USAMOVIES1, IsItHorror == 1, select = c(avg.vote))
+NoHorror <- subset(USAMOVIES1, IsItHorror == 0, select = c(avg.vote))
+t.test(Horror,NoHorror)
+```
+Based on the t-test above, we can see there is a difference between -0.7031330 and 
+-0.5389663 with a 95% confidence interval. Because of this interval, there is a significant 
+difference in the means of these groups of movies. This shows that horror movies will have 
+a lower rating in general compared to other movie types. The histograms below show this spread.
+```{r}
+p <- ggplot(Horror, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Horror Movie Ratings")
+p <- ggplot(NoHorror, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Non-Horror Movie Ratings")
+```
+
+## Romance Plots
+```{r}
+Romance <- subset(USAMOVIES1, IsItRomance == 1, select = c(avg.vote))
+NoRomance <- subset(USAMOVIES1, IsItRomance == 0, select = c(avg.vote))
+t.test(Romance, NoRomance)
+```
+Based on the t-test above, we can see there is a difference between -0.07828863 and 
+0.03853488 with a 95% confidence interval. Because of this interval, there is not a significant 
+difference in the means of these groups of movies due to the fact that our confidence 
+interval includes 0. This means that the ratings of a Romance movie and a non-romantic
+movie will not have a significant difference in mean based on the genre.The histograms
+below show the spread of the data.
+
+```{r}
+p <- ggplot(Romance, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Romance Movie Ratings")
+            
+p <- ggplot(NoRomance, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Non-Romance Movie Ratings")
+```
+
+
+## Action Plots
+```{r}
+Action <- subset(USAMOVIES1, IsItAction == 1, select = c(avg.vote))
+NoAction <- subset(USAMOVIES1, IsItAction == 0, select = c(avg.vote))
+t.test(Action,NoAction)
+```
+Based on the t-test above, we can see there is a difference between -0.17345224 and 
+-0.05673903 with a 95% confidence interval. Because of this interval, there is a significant 
+difference in the means of these groups of movies. This shows that action movies will have 
+a slightly lower rating in general compared to other movie types. The histograms below show this spread.
+
+```{r}
+p <- ggplot(Action, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Action Movie Ratings")
+            
+p <- ggplot(NoAction, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Non-Action Movie Ratings")
+```
+
+## Comedy Plot
+```{r}
+Comedy <- subset(USAMOVIES1, IsItComedy == 1, select = c(avg.vote))
+NoComedy <- subset(USAMOVIES1, IsItComedy == 0, select = c(avg.vote))
+t.test(Comedy,NoComedy)
+```
+Based on the t-test above, we can see there is a difference between -0.3428530 and 
+-0.2429231 with a 95% confidence interval. Because of this interval, there is a significant 
+difference in the means of these groups of movies. This shows that comedy movies will have 
+a lower rating in general compared to other movie types. The histograms below show this spread.
+
+```{r}
+p <- ggplot(Comedy, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Comedy Movie Ratings")
+            
+p <- ggplot(NoComedy, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Non-Comedy Movie Ratings")
+```
+
+## Drama Plot
+```{r}
+Drama <- subset(USAMOVIES1, IsItDrama == 1, select = c(avg.vote))
+NoDrama <- subset(USAMOVIES1, IsItDrama == 0, select = c(avg.vote))
+t.test(Drama,NoDrama)
+```
+Based on the t-test above, we can see there is a difference between 0.4930031 and 
+0.5904080 with a 95% confidence interval. Because of this interval, there is a significant 
+difference in the means of these groups of movies. This shows that dramatic movies will have 
+a higher rating in general compared to other movie types. The histograms below show this spread.
+
+```{r}
+p <- ggplot(Drama, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Drama Movie Ratings")
+            
+p <- ggplot(NoDrama, aes(x=avg.vote)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="#FF6666") + scale_x_continuous(breaks=seq(0, 10, 0.5))
+ p+ geom_vline(aes(xintercept=mean(avg.vote)),
+            color="blue", linetype="dashed", size=1) + ggtitle("Spread of Non-Drama Movie Ratings")
+```
+
+
+## How are Ratings Affected by Gender?
+We shift gears in this section from genres into whether gender plays a role in the 
+average rating of a movie. The t-test below checks to see if their is a significant 
+difference in the means of the female's average vote and the male's average vote. 
+We can see from the test that females vote more positivitely for movies on average
+in a range from 0.1812546 to 0.2513334 on a 95% percent confidence interval. 
+```{r}
+t.test(females.allages.avg.vote,males.allages.avg.vote)
+```
+The histogram below shows the spread of the two genders' votes. The male vote is indicated 
+with blue bars. The female vote is represented using pink bars. The overlap in the votes
+is indicated using the purple bars. We can see from the histogram the confirmation of the 
+observation above that females votes more positively for movies on average than males.
+```{r}
+hgf <- hist(females.allages.avg.vote,plot = FALSE)
+hgm <- hist(males.allages.avg.vote,plot = FALSE)
+
+plot(hgf,col = rgb(1,0,0,.2), main = "Spread of Female and Male Vote")
+plot(hgm,col = rgb(0,0,1,.2), add=TRUE)
+```
+
+
+In the next two sections, I wanted to combine the ideas from the two sections above.
+Is there a significant difference in average voting for a movie based on genres and gender.
+I chose to look specifically at two stereotypical movie and gender combinations to see
+if the stereotype would hold true when looking at the data. These combinations were
+women and romance movies and men and action movies. Below, I will examine if there is 
+a significant difference in the data when looking at males and females votes specifically in the romance
+and action movie genres.
+## Do Females Actually Like Romantic Movies More than Males?
+```{r}
+Romance1 <- subset(USAMOVIES1, IsItRomance == 1, select = c(avg.vote,males.allages.avg.vote,females.allages.avg.vote))
+t.test(Romance1$females.allages.avg.vote,Romance1$males.allages.avg.vote)
+```
+We can see from the t-test above that women will vote between 0.1912656 and 0.3371316
+points higher than males on movies in the romance category in a 95% confidence interval.
+Below you can see that spread in a box plot:
+```{r}
+boxplot(Romance1$females.allages.avg.vote,Romance1$males.allages.avg.vote,
+names = c("Female","Male"),
+col = c("pink","blue"))
+```
+
+## Do Males Actually Like Action Movies More than Females?
+```{r}
+Action1 <- subset(USAMOVIES1, IsItAction == 1, select = c(avg.vote,males.allages.avg.vote,females.allages.avg.vote))
+t.test(Action1$females.allages.avg.vote,Action1$males.allages.avg.vote)
+```
+We can see from the t-test above that women will vote between 0.1003357 and 0.2405763
+points higher than males on movies in the female category in a 95% confidence interval.
+This contradicts the stereotype that males like action movies more than females.
+Below you can see that spread in a box plot:
+```{r}
+boxplot(Action1$females.allages.avg.vote,Action1$males.allages.avg.vote,
+names = c("Female","Male"),
+col = c("pink","blue"))
+```
+
+## How Does Movie Duration Affect a Movie's Success?
+In the section below, we will look to see if there is any correlation between the duration
+of movies and the average votes for the movie.
+### Initial Model
+```{r}
+duration_lm <- lm(avg.vote~ duration)
+summary(duration_lm)
+plot(duration,avg.vote)
+abline(duration_lm, col = 'red')
+```
+
+### Model after taking out some outlier values
+```{r}
+res_std <- rstandard(duration_lm)
+USAMOVIES1$res_std = res_std
+USAMOVIES2 <- USAMOVIES1[USAMOVIES1$res_std <= 2,]
+USAMOVIES3 <- USAMOVIES2[USAMOVIES1$res_std >= -2,]
+duration_lm2 <- lm(USAMOVIES3$avg.vote~ USAMOVIES3$duration)
+summary(duration_lm2)
+plot(USAMOVIES3$duration,USAMOVIES3$avg.vote)
+abline(duration_lm2, col= 'red')
+```
+
+We can see from the summary above that the model and the variable for duration is 
+significant when predicting the average vote.
+
+
+
+
+
+
+
+
+
+
+
+
