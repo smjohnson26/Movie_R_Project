@@ -87,9 +87,82 @@ names(USAMOVIES)<-str_replace_all(names(USAMOVIES), c("_" = "." , "," = "" ))
 summary(USAMOVIES)
 ```
 # Successful Movies
-## What does our data look like? Do any changes or transformations need to be made to the data to more accurately represent successful movies?
-## How does profit and budget change over time?
+## Getting familiar with the data: Examining Count, Budget, Profit, and Score Over The Years
+```{r include= FALSE}
+m <- read.csv("usamovies_num.csv")
+#rename 'worlwide' to 'worldwide'
+colnames(m)[22] <- "worldwide.gross.income"
+cpi_rates <- read.csv("cpi_table.csv")
+#make year column into the index for cpi_rates dataframe
+row.names(cpi_rates) <- cpi_rates$Year
+cpi_rates[1] <- NULL
+cpi_2020 <-  cpi_rates["2020", 1]
+
+
+#Formula for inflated values: (original value * 2020 Consumer Price Index Value) / Consumer Price Index From Year of Release
+for(val in 1:nrow(m)){
+  m[val, "budg_infl"] <- (m[val, "budget"] * cpi_2020) / cpi_rates[toString(m[val, "year"]), "Avg"]
+  m[val, "worldwide_gross_infl"] <- (m[val, "worldwide.gross.income"] * cpi_2020) / cpi_rates[toString(m[val, "year"]), "Avg"]
+  m[val, "usa_gross_infl"] <- (m[val, "usa.gross.income"] * cpi_2020) / cpi_rates[toString(m[val, "year"]), "Avg"]
+  m[val, "profit_infl"] <- (m[val, "profit"] * cpi_2020) / cpi_rates[toString(m[val, "year"]), "Avg"]
+}
+```
+```{r out.width="50%" out.height="50%"}
+decades <- c(1910, 1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020)
+m$decade <- decades[findInterval(m$year, decades)]
+mean_budg_by_dec <- aggregate(budg_infl ~ decade, data = m, mean)
+mean_prof_by_dec <- aggregate(profit_infl ~ decade, data = m, mean)
+mean_score_by_dec <- aggregate(avg.vote ~ decade, data = m, mean)
+count_by_decade_plot<- barplot(table(m$decade), main="Movie Count By Decade", xlab="Decade", ylab="Number of Movies")
+
+mean_score_plot <- barplot(mean_score_by_dec$avg.vote, main="Average Score By Decade", names.arg=mean_score_by_dec$decade, xlab = "Decade", ylab="Avg Score")
+text(x=mean_score_plot, y=mean_score_by_dec$avg.vote, label=round(mean_score_by_dec$avg.vote, digits=2), pos=3, cex=0.8, col="red")
+
+mean_budg_plot <- barplot(mean_budg_by_dec$budg_infl, main="Average Budget By Decade", names.arg=mean_budg_by_dec$decade, xlab = "Decade", ylab="Avg Budget")
+text(x=mean_budg_plot, y=mean_budg_by_dec$budg_infl, label=round(mean_budg_by_dec$budg_infl, digits=2), pos=3, cex=0.8, col="red")
+
+mean_prof_plot <- barplot(mean_prof_by_dec$profit_infl, main="Average Profit By Decade", names.arg=mean_prof_by_dec$decade, xlab = "Decade", ylab="Avg Profit")
+text(x=mean_prof_plot, y=mean_prof_by_dec$profit_infl, label=round(mean_prof_by_dec$profit_infl, digits=2), pos=3, cex=0.8, col="red")
+```
+By grouping each of these columns by decade since 1910, the most immediately evident trend is the growth in number of films made in the past 100 years. Despite the growth in movie count since 1980, the average profit and average user rating score has noticeably decreased over the past 40 years - a clear sign that an influx in quantity is not necessarily indicative of a rise in quality. 
+
+# Do films with greater production budgets experience greater profit margins?
+```{r}
+profit_budget <- lm(m$profit ~ m$budget)
+profit_budget_infl <- lm(m$profit_infl ~ m$budg_infl)
+summary(profit_budget)
+summary(profit_budget_infl)
+```
+```{r out.width="50%", out.height="50%"}
+plot(m$budget, m$profit)
+abline(profit_budget, col="red")
+title("Relationship Between Budget and Profit")
+
+plot(m$budg_infl, m$profit_infl)
+abline(profit_budget_infl, col="red")
+title("Relationship Between Inflated Budget and Inflated Profit")
+```
+To examine the relationship between profit and budget, we created two separate linear regression models: one accounting for inflation and one that does not account for inflation. Profit and budget have a slight positive correlation in both models, but the model without inflation adjustment had a slightly better R-Squared value of **0.3842**.
+
+
 ## Does the budget have an effect on the profit margins, and user ratings of the movie?
+```{r}
+rating_budget <- lm(m$avg.vote ~ m$budget)
+rating_budget_infl <- lm(m$avg.vote  ~ m$budg_infl)
+summary(rating_budget)
+summary(rating_budget_infl)
+```
+```{r out.width="50%", out.height="50%"}
+plot(m$budget, m$profit)
+abline(profit_budget, col="red")
+title("Relationship Between Budget and Profit")
+
+plot(m$budg_infl, m$profit_infl)
+abline(profit_budget_infl, col="red")
+title("Relationship Between Inflated Budget and Inflated Profit")
+```
+We constructed two more simple linear regression models to examine the relationship between budget, inflated budget, and average user rating score. Much like the previous models, there is a slight positive relationship, but the R squared values in both models indicate that budget alone is not the most effective predictor of rating performance.
+
 ## What is the best way to predict the profit of a movie?
 To approach best assessing profit, Multiple Linear Regression is chosen as the best analytical method. Models will be assessed using Stepwise regression using both BIC and AIC. Profit will be assessed for movies created in the 21st century as profit seems to level out based on the time series graphs. Dataset will split into two and evaluated separately to account for movies where profit is positive or negative.
 A final model will be chosen, if possible, based on above criteria. 
@@ -425,14 +498,6 @@ abline(duration_lm2, col= 'red')
 
 We can see from the summary above that the model and the variable for duration is 
 significant when predicting the average vote.
-
-
-
-
-
-
-
-
 
 
 
