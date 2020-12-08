@@ -13,9 +13,9 @@ library(ggplot2)
 library(car)
 library(dplyr)
 
-IMDb_movies <- read.csv(file = "./IMDb movies.csv", header=TRUE)
-ratings <- read.csv(file = "./IMDb ratings.csv", header=TRUE)
-cpi_rates <- read.csv(file = "./cpi_table.csv", header=TRUE)
+IMDb_movies <- read.csv(file = "IMDb movies.csv", header=TRUE)
+ratings <- read.csv(file = "IMDb ratings.csv", header=TRUE)
+cpi_rates <- read.csv(file = "cpi_table.csv", header=TRUE)
 ```
 ## Renaming and inserting columns
 ```{r}
@@ -171,6 +171,7 @@ A final model will be chosen, if possible, based on above criteria.
 #removing metascore instead of rows with NA's because of the number of NA's that cause problems in the models.
 USAMOVIES <- select(USAMOVIES,-c("metascore"))
 #merging dataset to include ratings dataset to incorporate more information that might explain profit
+names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
 ratings<- select(ratings,c("imdb.title.id","mean.vote","median.vote","males.allages.avg.vote","males.allages.votes","females.allages.avg.vote","females.allages.votes","top1000.voters.rating","top1000.voters.votes","us.voters.rating","us.voters.votes","non.us.voters.rating","non.us.voters.votes"))
 USAMOVIESratings <- merge(USAMOVIES,ratings,by="imdb.title.id")
 USAMOVIESratings<- USAMOVIESratings[!is.na(USAMOVIESratings$reviews.from.users),]
@@ -272,6 +273,75 @@ Output for negative profit dataset using BIC:
   Overall through MLR and separating the dataset, it can be explained why a movie from 2000-2020 is able to make money. However, it cannot explain why a movie would not make money.
 
 ## Are production companies a significant variable when discussing the success of a movie?
+
+### Data Exploration
+
+```{r}
+summary(USAMOVIESratings[, c("production.company","profit", "profit.infl", "mean.vote")])
+
+# Finding the production companies with the most movies
+prod_comp_groups <- count(group_by(USAMOVIESratings,production.company))
+prod_co_groups_num_movies <- arrange(prod_comp_groups,-n)
+top_companies_list <- prod_co_groups_num_movies[prod_co_groups_num_movies$n > 50,]
+movies_by_top_companies <- USAMOVIESratings[USAMOVIESratings$production.company %in% top_companies_list$production.company,]
+
+summary(movies_by_top_companies[,c("production.company", "profit", "profit.infl", "mean.vote")])
+summary(prod_co_groups_num_movies)
+```
+
+```{r}
+attach(movies_by_top_companies)
+
+# Testing the significance of each production company compared to profit 
+top.companies.profit.model <- lm(profit~production.company)
+summary(top.companies.profit.model)
+
+# Collecting the top 10 production companies that were significant to Profit.
+significant_production_cos_profit <- subset(movies_by_top_companies,summary(top.companies.profit.model)$coeff[-1,4] < 0.05)
+num_sig_comps_profit <- count(significant_production_cos_profit, vars = production.company)
+ordered_run_profit <- num_sig_comps_profit[order(-num_sig_comps_profit$n),]
+head(ordered_run_profit, n = 10)
+
+# Testing the significance of each production company compared to profit with inflation
+top.companies.profit.inlf.model <- lm(profit.infl~production.company)
+summary(top.companies.profit.infl.model)
+
+# Collecting the top 10 production companies that were significant to Profit with inflation.
+significant_production_cos_profit_infl <- subset(movies_by_top_companies,summary(top.companies.profit.infl.model)$coeff[-1,4] < 0.05)
+num_sig_comps_profit_infl <- count(significant_production_cos_profit_infl, vars = production.company)
+ordered_run_profit_infl <- num_sig_comps_profit_infl[order(-num_sig_comps_profit_infl$n),]
+head(ordered_run_profit_infl, n = 10)
+```
+
+# Ratings Modeling
+
+```{r}
+# Testing the significance of each production company compared to ratings
+
+top.companies.ratings.model <- lm(avg.vote ~ production.company)
+summary(top.companies.ratings.model)
+
+# Collecting the top 10 production companies that were significant to Ratings.
+significant_production_cos_ratings <- subset(movies_by_top_companies,summary(top.companies.ratings.model)$coeff[-1,4] < 0.05)
+num_sig_comps_profit_ratings <- count(significant_production_cos_ratings, vars = production.company)
+ordered_run_profit_ratings <- num_sig_comps_profit_ratings[order(-num_sig_comps_profit_ratings$n),]
+head(ordered_run_profit_ratings, n = 10)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## How are ratings affected by movie genre, movie duration, gender?
 
 ### Genres
