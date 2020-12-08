@@ -83,6 +83,17 @@ for(val in 1:nrow(USAMOVIES)){
   USAMOVIES[val, "profit.infl"] <- (USAMOVIES[val, "profit"] * cpi_2020) / cpi_rates[toString(USAMOVIES[val, "year"]), "Avg"]
 }
 
+#Creating the data set with movie data and ratings data 
+#removing metascore instead of rows with NA's because of the number of NA's that cause problems in the models.
+USAMOVIES <- select(USAMOVIES,-c("metascore"))
+#merging dataset to include ratings dataset to incorporate more information that might explain profit
+names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
+ratings<- select(ratings,c("imdb.title.id","mean.vote","median.vote","males.allages.avg.vote","males.allages.votes","females.allages.avg.vote","females.allages.votes","top1000.voters.rating","top1000.voters.votes","us.voters.rating","us.voters.votes","non.us.voters.rating","non.us.voters.votes"))
+USAMOVIESratings <- merge(USAMOVIES,ratings,by="imdb.title.id")
+USAMOVIESratings<- USAMOVIESratings[!is.na(USAMOVIESratings$reviews.from.users),]
+USAMOVIESratings<- USAMOVIESratings[!is.na(USAMOVIESratings$reviews.from.critics),]
+USAMOVIES1 <- USAMOVIESratings
+
 summary(USAMOVIES)
 ```
 # Successful Movies
@@ -143,21 +154,124 @@ title("Relationship Between Inflated Budget and Inflated Profit")
 ```
 We constructed two more simple linear regression models to examine the relationship between budget, inflated budget, and average user rating score. Much like the previous models, there is a slight positive relationship, but the R squared values in both models indicate that budget alone is not the most effective predictor of rating performance.
 
-## What is the best way to predict the profit of a movie?
+# Time Series Analysis of Profit and Profit (with Inflation)
+
+Since profit is the response variable we chose to predict, it is important to fully understand that data. The following section will explore more of the profit and profit with inflation variables of the data set.
+
+## Setup for Time Series Analysis
+```{r}
+
+# Creating a time series analysis
+MOVIES.TIME.SERIES <- USAMOVIESratings[c("year","date.published","profit.infl","profit")]
+# Putting the movies in order by the date they were published
+MOVIES.TIME.SERIES <- MOVIES.TIME.SERIES[order(MOVIES.TIME.SERIES$date.published),]                             
+attach(MOVIES.TIME.SERIES)
+
+# Found inconsistencies in the year and date.published so create a new column to extract the year from date.published
+MOVIES.TIME.SERIES$year.published<- as.integer(substring(MOVIES.TIME.SERIES$date.published,1,4))
+head(MOVIES.TIME.SERIES$year.published)
+
+# Group movies by year and investigate that time series
+years <- group_by(MOVIES.TIME.SERIES,year.published)
+
+```
+
+In order to get a clear picture of how profit changed over time we aggregated the data set by grouping all movies for the year and taking the average of the profit for each year. The following graphs show the relationship of profit and profit for inflation over the years.
+
+## Time Series by year
+```{r}
+# Graphing the time series of average profit by year with and without inflation.
+
+# Create a set of data that only includes the year and the average profit for that year.
+avg.profit.by.year <- summarize(years,avg.profit = mean(profit))
+
+ggplot(data = avg.profit.by.year, aes(x = year.published, y = avg.profit)) +
+  geom_line(stat = "identity") +
+  labs(title = "Avgerage Profit gained per Year",
+       subtitle = "1921 - 2020",x = "Date", y = "Profit")
+
+
+# Create a set of data that only includes the year and the average profit for that year with inflation.
+avg.profit.infl.by.year <- summarize(years,avg.profit.infl = mean(profit.infl))
+
+# Graphing the time series of average profit with inflation by year.
+
+ggplot(data = avg.profit.infl.by.year, aes(x = year.published, y = avg.profit.infl)) +
+  geom_line(stat = "identity") +
+  labs(title = "Avgerage Profit (with Inflation) gained per Year",
+       subtitle = "1921 - 2020",
+       x = "Date", y = "Profit")
+
+```
+
+From these graphs we see a lot of variation at the beginning of our data. We also see that profit with inflation begins to level off around the year 1980. To look a little further, we grouped the data again by decade.
+
+## Time Series by Decade
+```{r}
+# Created a new column that created the decade the movie was created.
+MOVIES.TIME.SERIES$decade.published <- as.integer(substring(MOVIES.TIME.SERIES$date.published,1,3))*10
+
+# Grouped by Decade
+decade <- group_by(MOVIES.TIME.SERIES,decade.published)
+
+# Calculated the average profit by decade
+avg.profit.by.decade <- summarize(decade,avg.profit = mean(profit))
+
+#Graphed the result Profit by decade
+ggplot(data = avg.profit.by.decade, aes(x = decade.published, y = avg.profit)) +
+  geom_line(stat = "identity") +
+  xlim(1920,2020) +
+  labs(title = "Avgerage Profit gained over Decades",
+       subtitle = "1920 - 2020",
+       x = "Date", y = "Profit")
+
+# Calculated the average profit with inflation by decade
+avg.profit.infl.by.decade <- summarize(decade,avg.profit.infl = mean(profit.infl))
+
+# Graphed the result Profit with inflation
+ggplot(data = avg.profit.infl.by.decade, aes(x = decade.published, y = avg.profit.infl)) +
+  geom_line(stat = "identity") +
+  xlim(1920,2020) +
+  labs(title = "Avgerage Profit with Inflation gained over Decades",
+       subtitle = "1920 - 2020",
+       x = "Date", y = "Profit")
+```
+Looking at the decade graphs, profit without inflation has a generally increasing trend which makes intuitive sense because prices were rising over the century. However, the profit with inflation still has a large increase around 1930 and 1940 before it begins to normalize in the second half of the century. We looked into this a little further by creating a faucet wrap shown belown.
+
+```{r}
+# Distribution of movies by profit over every decade
+ggplot(data=decade, aes(x = profit.infl)) +
+  geom_histogram() + 
+  ylim(0,10) +
+  facet_wrap(~decade.published)
+```
+
+From this display of graphs we see that there was a movie in both the 1930s and the 1940s that produced a higher profit than any movie we currently have available. This explains the massive spike in average over those decades. 
+
+## Correlation between the years
+```{r}
+#Checking for correlation between any given date and the one before.
+plot(profit.infl[1:6529], profit.infl[2:6530], pch=20, col=4,
+     main="Profit for Individual Movies by Date Published", xlab="Profit(t-1)",
+     ylab = "Profit(t)")
+text(x=6, y=45, col=2, cex=1.5,
+     labels=paste("Corr =", round(cor(profit.infl[1:6529],
+                                      profit.infl[2:6530]),2)))
+
+# Autocorrelation between each date
+print(acf(profit.infl, main = "Correlation of Profit from one year to the year before"))
+
+```
+When looking into correlation between the years, we find that one year does not have a lot of effect on the year before it or after it. However, when running the auto correlation, we do find some year gaps that are labeled significant although their correlations are very low. This begins with about every seven years and happens again around year ten and thirteen.
+
+Now that we know a little more about one of our response variables, we can discuss how to find the correct predictors.
+
+# What is the best way to predict the profit of a movie?
 To approach best assessing profit, Multiple Linear Regression is chosen as the best analytical method. Models will be assessed using Stepwise regression using both BIC and AIC. Profit will be assessed for movies created in the 21st century as profit seems to level out based on the time series graphs. Dataset will split into two and evaluated separately to account for movies where profit is positive or negative.
 A final model will be chosen, if possible, based on above criteria. 
-### Data subset and Transformation
-```{r}
-#removing metascore instead of rows with NA's because of the number of NA's that cause problems in the models.
-USAMOVIES <- select(USAMOVIES,-c("metascore"))
-#merging dataset to include ratings dataset to incorporate more information that might explain profit
-names(ratings)<-str_replace_all(names(ratings), c("_" = "." , "," = "" ))
-ratings<- select(ratings,c("imdb.title.id","mean.vote","median.vote","males.allages.avg.vote","males.allages.votes","females.allages.avg.vote","females.allages.votes","top1000.voters.rating","top1000.voters.votes","us.voters.rating","us.voters.votes","non.us.voters.rating","non.us.voters.votes"))
-USAMOVIESratings <- merge(USAMOVIES,ratings,by="imdb.title.id")
-USAMOVIESratings<- USAMOVIESratings[!is.na(USAMOVIESratings$reviews.from.users),]
-USAMOVIESratings<- USAMOVIESratings[!is.na(USAMOVIESratings$reviews.from.critics),]
-USAMOVIES1 <- USAMOVIESratings
 
+## Data subset and Transformation
+```{r}
 #subsetting dataset to only account for movies from 2000 on.
 year21<-subset(USAMOVIESratings, year>=2000)
 #subsetting dataset to separate movies where profit as positive or negative
@@ -175,7 +289,7 @@ absprofit<- abs(negprof$profit.infl)
 logprofitneg<- (absprofit)^(1/3)
 ```
 
-### Full Model
+## Full Model
 
 Creation of a Full Model from both the positive and negative datasets.
 ```{r}
@@ -188,7 +302,7 @@ summary(fullmodneg)
 
 Using stepwise regression for model evaluation. Initially used Backwards and Forwards but appeared redundant and stepwise accounted better than both.
 
-### AIC
+## AIC
 ```{r}
   StepAICpos <- step(fullmodpos,direction="both", data=posprof)
   StepAICmodpos<-lm(logprofitpos ~ year + duration + avg.vote + votes + reviews.from.users + 
@@ -215,7 +329,7 @@ Output for negative profit dataset using AIC:
   #AIC= 12824.73
   #R^2= 0.3681   
   
-### BIC  
+## BIC  
 Creating variable for BIC evaluation
 ```{r}  
   npos <- length(fullmodpos$residuals)
@@ -245,29 +359,58 @@ Output for positive profit dataset using BIC:
 Output for negative profit dataset using BIC:
   #BIC= 12905.24
   #R^2= 0.3643  
-### Final Model
+  
+## Final Model
+
   The best assessment of profit is StepBICmodpos where BIC= 1022.99 and R^2= 0.5955. The final model has 3 less variables then its counter part using BIC. The difference between the two models R^2 is less than 2% difference, therefore the simpler model was chosen. With this model all variables are significant in the model.
   The variables in the final model include: year,duration,avg.vote,votes,reviews.from.users,reviews.from.critics,IsItComedy,IsItDrama,males.allages.avg.vote,females.allages.avg.vote,females.allages.votes,top1000.voters.votes,us.voters.rating,non.us.voters.votes. 
   A R^2 of 0.5955 that the model does an adequate job of understand why a movie is profitable. However, there is room for improvement outside the scope of the dataset. 
   Even though both model for the negative dataset were significant, based on the R^2 are adequate to explain why a movie did not make money.
   Overall through MLR and separating the dataset, it can be explained why a movie from 2000-2020 is able to make money. However, it cannot explain why a movie would not make money.
 
-## Are production companies a significant variable when discussing the success of a movie?
+# Are production companies a significant variable when discussing the success of a movie?
 
-### Data Exploration
+## Data Exploration
 
 ```{r}
 summary(USAMOVIESratings[, c("production.company","profit", "profit.infl", "mean.vote")])
 
+
+production_companies <- lm(USAMOVIESratings$profit ~ USAMOVIESratings$production.company)
+summary(production_companies)
+```
+
+From this model it is evident that there are too many independent variables. To 
+help subset the data it is helpful to select the top production companies in the data.
+
+The following code will group the data by production company and count the number of 
+movies from each production company.
+
+```{r}
 # Finding the production companies with the most movies
 prod_comp_groups <- count(group_by(USAMOVIESratings,production.company))
 prod_co_groups_num_movies <- arrange(prod_comp_groups,-n)
+prod_co_groups_num_movies
+summary(prod_co_groups_num_movies)
+```
+
+The resulting summary shows that 75% of the production companies have only produced one movie. 
+The summary also shows that the maximum number of movies produced by a company is 339 movies.
+From the ordered groupings we see that there is a good cut off around 50 movies.
+Therefore, we subset the data based on the 18 production companies that made at least 
+50 movies in the data set.
+
+```{r}
 top_companies_list <- prod_co_groups_num_movies[prod_co_groups_num_movies$n > 50,]
 movies_by_top_companies <- USAMOVIESratings[USAMOVIESratings$production.company %in% top_companies_list$production.company,]
 
 summary(movies_by_top_companies[,c("production.company", "profit", "profit.infl", "mean.vote")])
-summary(prod_co_groups_num_movies)
+
 ```
+
+After subsetting the data and looking at the new summaries it looked good to move forward in the analysis.
+
+## Production Company Profit Modeling
 
 ```{r}
 attach(movies_by_top_companies)
@@ -275,25 +418,21 @@ attach(movies_by_top_companies)
 # Testing the significance of each production company compared to profit 
 top.companies.profit.model <- lm(profit~production.company)
 summary(top.companies.profit.model)
-
-# Collecting the top 10 production companies that were significant to Profit.
-significant_production_cos_profit <- subset(movies_by_top_companies,summary(top.companies.profit.model)$coeff[-1,4] < 0.05)
-num_sig_comps_profit <- count(significant_production_cos_profit, vars = production.company)
-ordered_run_profit <- num_sig_comps_profit[order(-num_sig_comps_profit$n),]
-head(ordered_run_profit, n = 10)
-
-# Testing the significance of each production company compared to profit with inflation
-top.companies.profit.infl.model <- lm(profit.infl~production.company)
-summary(top.companies.profit.infl.model)
-
-# Collecting the top 10 production companies that were significant to Profit with inflation.
-significant_production_cos_profit.infl <- subset(movies_by_top_companies,summary(top.companies.profit.infl.model)$coeff[-1,4] < 0.05)
-num_sig_comps_profit.infl <- count(significant_production_cos_profit.infl, vars = production.company)
-ordered_run_profit.infl <- num_sig_comps_profit.infl[order(-num_sig_comps_profit.infl$n),]
-head(ordered_run_profit.infl, n = 10)
 ```
 
-# Ratings Modeling
+This model shows that there are eight significant production companies. Walt Disney Pictures, Twentieth Century Fox, and Warner Brothers were all positively significant while Fox Searchlight Pictures, Metro-Goldwyn-Mayer (MGM), Miramax, Screen Gems, and TriStar Pictures had a signifiant negative relationship with profit.
+
+```{r}
+
+# Testing the significance of each production company compared to profit with inflation
+top.companies.profit.inlf.model <- lm(profit.infl~production.company)
+summary(top.companies.profit.inlf.model)
+
+```
+
+With another significant model, production companies continue to have an affect on the profit gained. However, in this model we see that there was some fluctuation of which companies where positively and negatively significant.Paramount Pictures and Universal Pictures joined Walt Disney Pictures, Twentieth Century Fox, and Warner Brothers as positive influences for this model. Fox Searchlight Pictures, Miramax, and Screen Gems remained significantly negative for this model.
+
+## Production Company Ratings Modeling
 
 ```{r}
 # Testing the significance of each production company compared to ratings
@@ -301,30 +440,15 @@ head(ordered_run_profit.infl, n = 10)
 top.companies.ratings.model <- lm(avg.vote ~ production.company)
 summary(top.companies.ratings.model)
 
-# Collecting the top 10 production companies that were significant to Ratings.
-significant_production_cos_ratings <- subset(movies_by_top_companies,summary(top.companies.ratings.model)$coeff[-1,4] < 0.05)
-num_sig_comps_profit_ratings <- count(significant_production_cos_ratings, vars = production.company)
-ordered_run_profit_ratings <- num_sig_comps_profit_ratings[order(-num_sig_comps_profit_ratings$n),]
-head(ordered_run_profit_ratings, n = 10)
+
 ```
+ 
+According to this model, production companies have a significant impact on the user ratings. There was one less significant company that was in this model compared to the profit models. Warner Brothers, DreamWorks,Fox Searchlight Pictures and Miramax made a positively significant impact. While Dimension Films, New Line Cinema, and Screen Gems had a reverse effect on the average vote. This places Screen Gems as a negative factor for both profit and average vote.
 
+# How are ratings affected by movie genre, movie duration, gender?
 
+## Genres
 
-
-
-
-
-
-
-
-
-
-
-
-
-## How are ratings affected by movie genre, movie duration, gender?
-
-### Genres
 ```{r}
 attach(USAMOVIES1)
 lm_all <- lm(avg.vote ~ IsItHorror + IsItRomance + IsItAction + IsItComedy + IsItDrama)
@@ -494,7 +618,9 @@ if the stereotype would hold true when looking at the data. These combinations w
 women and romance movies and men and action movies. Below, I will examine if there is 
 a significant difference in the data when looking at males and females votes specifically in the romance
 and action movie genres.
+
 ## Do Females Actually Like Romantic Movies More than Males?
+
 ```{r}
 Romance1 <- subset(USAMOVIES1, IsItRomance == 1, select = c(avg.vote,males.allages.avg.vote,females.allages.avg.vote))
 t.test(Romance1$females.allages.avg.vote,Romance1$males.allages.avg.vote)
@@ -509,6 +635,7 @@ col = c("pink","blue"))
 ```
 
 ## Do Males Actually Like Action Movies More than Females?
+
 ```{r}
 Action1 <- subset(USAMOVIES1, IsItAction == 1, select = c(avg.vote,males.allages.avg.vote,females.allages.avg.vote))
 t.test(Action1$females.allages.avg.vote,Action1$males.allages.avg.vote)
@@ -524,9 +651,12 @@ col = c("pink","blue"))
 ```
 
 ## How Does Movie Duration Affect a Movie's Success?
+
 In the section below, we will look to see if there is any correlation between the duration
 of movies and the average votes for the movie.
+
 ### Initial Model
+
 ```{r}
 duration_lm <- lm(avg.vote~ duration)
 summary(duration_lm)
@@ -535,6 +665,7 @@ abline(duration_lm, col = 'red')
 ```
 
 ### Model after taking out some outlier values
+
 ```{r}
 res_std <- rstandard(duration_lm)
 USAMOVIES1$res_std = res_std
